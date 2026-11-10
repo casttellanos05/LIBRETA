@@ -91,8 +91,8 @@ function avGrupos() {
         chipsRegistro(g.id, mat, si) +
         '<div class="row" style="margin-top:8px"><span class="small muted">Ajustar:</span><button class="btn sm" data-act="ajusta|' + g.id + '|' + mat + '|-1">−1</button><button class="btn sm" data-act="ajusta|' + g.id + '|' + mat + '|1">+1</button><input id="ir' + g.id + mat + '" inputmode="numeric" placeholder="Ir a clase…" style="width:104px;min-height:30px"><button class="btn sm" data-act="irClase|' + g.id + '|' + mat + '">Ir</button></div>';
       if (si.ev) h += '<div class="note warn row sp" style="margin-top:8px"><span><b>En fase de evaluación</b> · ' + esc(S.cfg.periodos[si.ev.periodo - 1]) + '. Su siguiente clase será de evaluación.</span><button class="btn sm" data-act="evalCancelar|' + g.id + '|' + mat + '">Cancelar</button></div>';
-      else if (abre) h += '<div class="note" style="margin-top:8px"><div class="row"><label class="f">Periodo que se evalúa<select data-chg="evalPer|' + g.id + '|' + mat + '">' + S.cfg.periodos.map((p, i) => '<option value="' + (i + 1) + '"' + (periodoSug(g.id, mat) === i + 1 ? ' selected' : '') + '>' + esc(p) + '</option>').join('') + '</select></label><button class="btn pri" data-act="evalIniciar|' + g.id + '|' + mat + '" style="align-self:flex-end">Iniciar fase de evaluación</button><button class="btn ghost" data-act="evalForm|' + g.id + '|' + mat + '" style="align-self:flex-end">Cancelar</button></div><div class="small muted" style="margin-top:4px">La siguiente clase de ' + MAT_NOMBRE[mat] + ' de ' + gNombre(g.id) + ' se dedica a evaluar y no avanza el plan.</div></div>';
-      else h += '<div style="margin-top:8px"><button class="btn sm" data-act="evalForm|' + g.id + '|' + mat + '">Iniciar fase de evaluación</button></div>';
+      else if (abre) h += '<div class="note" style="margin-top:8px"><div class="row"><label class="f">Periodo que se evalúa<select data-chg="evalPer|' + g.id + '|' + mat + '">' + S.cfg.periodos.map((p, i) => '<option value="' + (i + 1) + '"' + (periodoSug(g.id, mat) === i + 1 ? ' selected' : '') + '>' + esc(p) + '</option>').join('') + '</select></label><button class="btn pri" data-act="evalIniciar|' + g.id + '|' + mat + '" style="align-self:flex-end">Aplicar examen · iniciar fase de evaluación</button><button class="btn ghost" data-act="evalForm|' + g.id + '|' + mat + '" style="align-self:flex-end">Cancelar</button></div><div class="small muted" style="margin-top:4px">La siguiente clase de ' + MAT_NOMBRE[mat] + ' de ' + gNombre(g.id) + ' se dedica a evaluar y no avanza el plan.</div></div>';
+      else h += '<div style="margin-top:8px"><button class="btn sm" data-act="evalForm|' + g.id + '|' + mat + '">Aplicar examen · iniciar fase de evaluación</button></div>';
       h += '</div>';
     });
     if (b.n) h += '<div class="small muted" style="margin-top:10px">Bitácora: ánimo ' + (b.animo ? ANIMOS[Math.round(b.animo) - 1] : '—') + ' · participación ' + fix1(b.part) + '/5</div>';
@@ -226,7 +226,8 @@ ACT.camb = (el, id, est) => { const c = cl(S.cambios[id]); c.estado = est; c.res
 function avReporte() {
   const gs = ordenGrupos(), r = S.ui.rep = S.ui.rep || { g: gs[0].id, nom: false };
   if (!S.grupos[r.g]) r.g = gs[0].id;
-  return '<div class="card"><h3>Reporte final por grupo</h3><p class="muted" style="margin:0 0 10px">Un PDF de una o dos hojas con el avance del programa, los promedios por trimestre, la distribución y lo que registró la bitácora. No incluye nombres de alumnos, salvo que lo pidas abajo.</p>' +
+  return '<div class="card"><h3>Informe para dirección</h3><p class="muted" style="margin:0 0 10px">Dos hojas, formales y con gráficas: indicadores de toda la escuela, promedio por grado, distribución de calificaciones, avance del plan por grupo y detalle por grupo, con espacio para firmas. No incluye nombres de alumnos.</p><div class="row"><label class="f">Periodo<select data-chg="infP">' + S.cfg.periodos.map((p, i) => '<option value="' + (i + 1) + '"' + (Number(S.ui.infP || 1) === i + 1 ? ' selected' : '') + '>' + esc(p) + '</option>').join('') + '<option value="anual"' + (S.ui.infP === 'anual' ? ' selected' : '') + '>Promedio anual</option></select></label><button class="btn pri" data-act="informeDir" style="align-self:flex-end">Generar informe (PDF)</button></div></div>' +
+    '<div class="card"><h3>Reporte final por grupo</h3><p class="muted" style="margin:0 0 10px">Un PDF de una o dos hojas con el avance del programa, los promedios por trimestre, la distribución y lo que registró la bitácora. No incluye nombres de alumnos, salvo que lo pidas abajo.</p>' +
     '<div class="row"><label class="f">Grupo<select data-chg="repG">' + gs.map(g => '<option value="' + g.id + '"' + (g.id === r.g ? ' selected' : '') + '>' + gNombre(g.id) + '</option>').join('') + '</select></label>' +
     '<label class="row small" style="align-self:flex-end"><input type="checkbox" data-chg="repNom"' + (r.nom ? ' checked' : '') + '> Incluir lista de alumnos con promedio menor a ' + S.cfg.esc.aprob + ' (solo para ti)</label>' +
     '<button class="btn pri" data-act="repPDF" style="align-self:flex-end">Generar PDF</button></div></div>';
@@ -287,3 +288,112 @@ ACT.repPDF = async () => {
   for (let i = 0; i < 4; i++) { doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2); if (y > 262) { doc.addPage(); y = 20; } doc.line(m, y + 5, m + w, y + 5); y += 8; }
   descargar('reporte-final-' + gid + '.pdf', doc.output('arraybuffer'));
 };
+
+/* ---------- Informe formal para dirección (corto, con gráficas) ---------- */
+ACT.informeDir = async () => {
+  if (!(await asegurarPDF())) return;
+  const per = S.ui.infP === 'anual' ? 'anual' : Number(S.ui.infP || 1), perTxt = per === 'anual' ? 'Promedio anual del ciclo' : S.cfg.periodos[per - 1];
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' });
+  const navy = [15, 27, 51], blue = [36, 87, 214], sky = [140, 170, 235], ink = [50, 54, 66], gris = [120, 126, 140], bajo = [192, 57, 43], fondo = [244, 246, 250];
+  const m = 16, Wd = 215.9, w = Wd - 2 * m, gs = ordenGrupos(), MS = ['ingles', 'compu'], col = { ingles: blue, compu: navy };
+  const T = (t, x, y, o) => { o = o || {}; doc.setFont('helvetica', o.b ? 'bold' : 'normal'); doc.setFontSize(o.s || 9); doc.setTextColor(...(o.c || ink)); doc.text(String(t), x, y, o.a ? { align: o.a } : undefined); };
+  const sec = (t, x, y, ww) => { T(t.toUpperCase(), x, y, { b: 1, s: 7.5, c: blue }); doc.setDrawColor(...blue); doc.setLineWidth(0.3); doc.line(x, y + 1.5, x + ww, y + 1.5); };
+  const mats = MS.filter(mt => gs.some(g => matsDe(g.id).indexOf(mt) >= 0));
+  const stat = {}; gs.forEach(g => { stat[g.id] = {}; matsDe(g.id).forEach(mt => { stat[g.id][mt] = statsGrupo(g.id, mt, per); }); });
+  const tot = {}; mats.forEach(mt => { tot[mt] = resumenGrupos(gs.filter(g => matsDe(g.id).indexOf(mt) >= 0), mt, per); });
+  const dadas = gs.reduce((s, g) => s + matsDe(g.id).reduce((q, mt) => q + listaDadas(g.id, mt).length, 0), 0);
+  const canc = Object.values(S.clases).filter(c => c.estado === 'cancelada').length;
+  const pie = n => { T('Informe generado con la Libreta de Clases · página ' + n + ' de 2', Wd / 2, 272, { s: 7, c: gris, a: 'center' }); };
+  // --- encabezado
+  doc.setFillColor(...navy); doc.rect(0, 0, Wd, 36, 'F'); doc.setFillColor(...blue); doc.rect(0, 36, Wd, 1.6, 'F');
+  T(S.cfg.escuela.toUpperCase(), m, 15, { b: 1, s: 16, c: [255, 255, 255] });
+  T('INFORME DE AVANCE ACADÉMICO · INGLÉS Y COMPUTACIÓN', m, 23, { b: 1, s: 8, c: [190, 205, 240] });
+  T(perTxt + ' · Ciclo ' + S.cfg.ciclo, m, 30, { s: 9.5, c: [255, 255, 255] });
+  T('Elaboró: ' + S.cfg.maestro, Wd - m, 15, { s: 8.5, c: [255, 255, 255], a: 'right' }); T('Fecha: ' + fmtLargo(hoy()).toLowerCase() + ' de ' + pd(hoy()).getFullYear(), Wd - m, 21, { s: 8.5, c: [190, 205, 240], a: 'right' });
+  // --- indicadores
+  const kp = [[gs.length, 'grupos atendidos'], [Object.keys(S.alumnos).length, 'alumnos'], [dadas, 'clases impartidas'], [canc, 'clases canceladas']];
+  mats.forEach(mt => kp.push([fix1(tot[mt].final), 'promedio ' + MAT_NOMBRE[mt].toLowerCase()]));
+  const kw = (w - (kp.length - 1) * 3) / kp.length;
+  kp.forEach((k, i) => { const x = m + i * (kw + 3); doc.setFillColor(...fondo); doc.roundedRect(x, 44, kw, 20, 2, 2, 'F'); T(k[0], x + kw / 2, 54, { b: 1, s: 16, c: navy, a: 'center' }); T(k[1], x + kw / 2, 60, { s: 6.8, c: gris, a: 'center' }); });
+  // --- gráfica 1: promedio por grado
+  const cw = (w - 8) / 2, ch = 56, gx = m, gy = 76;
+  sec('Promedio por grado', gx, gy, cw);
+  const ox = gx + 8, oy = gy + 8 + ch - 12, ph = ch - 14, mn = S.cfg.esc.min, mx = S.cfg.esc.max, yv = v => oy - (Math.max(mn, Math.min(mx, v)) - mn) / (mx - mn) * ph;
+  doc.setDrawColor(225, 229, 238); doc.setLineWidth(0.15);
+  for (let v = mn; v <= mx; v++) { doc.line(ox, yv(v), gx + cw, yv(v)); T(v, ox - 2, yv(v) + 1, { s: 6.5, c: gris, a: 'right' }); }
+  doc.setDrawColor(...bajo); doc.setLineWidth(0.3); doc.setLineDashPattern([1.2, 1.2], 0); doc.line(ox, yv(S.cfg.esc.aprob), gx + cw, yv(S.cfg.esc.aprob)); doc.setLineDashPattern([], 0);
+  const gw = (gx + cw - ox) / 6;
+  [1, 2, 3, 4, 5, 6].forEach((gr, i) => {
+    const gg = gs.filter(g => g.grado === gr);
+    mats.forEach((mt, k) => { const R = resumenGrupos(gg.filter(g => matsDe(g.id).indexOf(mt) >= 0), mt, per), bw = Math.min(7, gw / 3), bx = ox + i * gw + gw / 2 - (mats.length * bw) / 2 + k * bw; if (R.final != null) { doc.setFillColor(...col[mt]); doc.rect(bx, yv(R.final), bw - 0.6, oy - yv(R.final), 'F'); T(fix1(R.final), bx + (bw - 0.6) / 2, yv(R.final) - 1, { s: 6, c: ink, a: 'center' }); } });
+    T(gr + '.º', ox + i * gw + gw / 2, oy + 4.5, { s: 8, b: 1, a: 'center' });
+  });
+  mats.forEach((mt, k) => { doc.setFillColor(...col[mt]); doc.rect(gx + 8 + k * 22, oy + 8, 3, 3, 'F'); T(MAT_NOMBRE[mt], gx + 12 + k * 22, oy + 10.6, { s: 7.5 }); });
+  T('línea roja: mínimo aprobatorio (' + S.cfg.esc.aprob + ')', gx + cw, oy + 10.6, { s: 6.5, c: bajo, a: 'right' });
+  // --- gráfica 2: distribución de calificaciones
+  const hx = m + cw + 8; sec('Distribución de calificaciones', hx, gy, cw);
+  const dist = {}; let dm = 1; mats.forEach(mt => { dist[mt] = {}; for (let k = mn; k <= mx; k++) dist[mt][k] = 0; gs.forEach(g => { if (!stat[g.id][mt]) return; const s = stat[g.id][mt]; Object.keys(s.dist).forEach(k => { dist[mt][k] += s.dist[k]; }); }); dm = Math.max(dm, ...Object.values(dist[mt])); });
+  const dx = hx + 4, dw = (cw - 4) / (mx - mn + 1), dh = ph;
+  for (let k = mn; k <= mx; k++) {
+    const i = k - mn; mats.forEach((mt, q) => { const bw = Math.min(6, dw / 2.4), bx = dx + i * dw + dw / 2 - (mats.length * bw) / 2 + q * bw, hh = dh * dist[mt][k] / dm; doc.setFillColor(...(k < S.cfg.esc.aprob ? bajo : col[mt])); if (k < S.cfg.esc.aprob && q === 1) doc.setFillColor(220, 120, 110); if (hh > 0) { doc.rect(bx, oy - hh, bw - 0.6, hh, 'F'); T(dist[mt][k], bx + (bw - 0.6) / 2, oy - hh - 1, { s: 6, a: 'center' }); } });
+    T(k, dx + i * dw + dw / 2, oy + 4.5, { s: 8, b: 1, a: 'center' });
+  }
+  doc.setDrawColor(190, 195, 205); doc.setLineWidth(0.2); doc.line(dx, oy, hx + cw, oy);
+  T('Número de alumnos por calificación (rojo: no aprobatoria)', hx, oy + 10.6, { s: 7, c: gris });
+  // --- gráfica 3: avance del plan por grupo
+  const ay = 148; sec('Avance del plan por grupo (clases completadas)', m, ay, w);
+  const lw = 22, bl = w - lw - 26; let y = ay + 8;
+  gs.forEach(g => {
+    T(gNombre(g.id), m, y + 2.4, { b: 1, s: 8 });
+    matsDe(g.id).forEach((mt, k) => {
+      const si = sigClase(g.id, mt), f = Math.min(1, si.pos / si.total), by = y + k * 3.2 - 0.4;
+      doc.setFillColor(232, 236, 244); doc.rect(m + lw, by, bl, 2.6, 'F'); doc.setFillColor(...col[mt]); if (f > 0) doc.rect(m + lw, by, bl * f, 2.6, 'F');
+      T(si.pos + '/' + si.total, m + lw + bl + 2, by + 2.2, { s: 6.5, c: ink });
+    });
+    y += 8.2;
+  });
+  mats.forEach((mt, k) => { doc.setFillColor(...col[mt]); doc.rect(m + k * 34, y + 1, 3, 3, 'F'); T(MAT_NOMBRE[mt], m + 4 + k * 34, y + 3.6, { s: 7 }); });
+  pie(1);
+  // --- página 2
+  doc.addPage(); T('DETALLE POR GRUPO · ' + perTxt.toUpperCase(), m, 18, { b: 1, s: 9, c: navy });
+  doc.setDrawColor(...blue); doc.setLineWidth(0.5); doc.line(m, 21, m + w, 21);
+  const C = [['Grupo', 14], ['Alum.', 11], ['Nivel', 10], ['Clase', 13], ['Prom.', 12], ['Aprob.', 12], ['Nivel', 10], ['Clase', 13], ['Prom.', 12], ['Aprob.', 12], ['Bloque o tema en curso (Inglés)', w - 119]];
+  let x = m; doc.setFillColor(...navy); doc.rect(m, 24, w, 11, 'F');
+  T('INGLÉS', m + 14 + 11 + 5, 28, { b: 1, s: 6.5, c: [190, 205, 240] }); T('COMPUTACIÓN', m + 14 + 11 + 47 + 5, 28, { b: 1, s: 6.5, c: [190, 205, 240] });
+  C.forEach(c => { T(c[0], x + 1.5, 33.2, { b: 1, s: 7, c: [255, 255, 255] }); x += c[1]; });
+  y = 40;
+  gs.forEach((g, i) => {
+    if (i % 2) { doc.setFillColor(...fondo); doc.rect(m, y - 4.2, w, 7.2, 'F'); }
+    x = m; const cell = (t, k, o) => { T(t, x + 1.5, y, o || {}); x += C[k][1]; };
+    cell(gNombre(g.id), 0, { b: 1, s: 8.5 }); cell(alumnosDe(g.id).length, 1, { s: 8 });
+    // inglés y computación en columnas fijas
+    x = m + C[0][1] + C[1][1];
+    MS.forEach((mt, q) => {
+      const has = matsDe(g.id).indexOf(mt) >= 0, si = has ? sigClase(g.id, mt) : null, s = has ? stat[g.id][mt] : null, o = q * 47;
+      const base = m + C[0][1] + C[1][1] + o;
+      if (!has) { T('—', base + 1.5, y, { c: gris }); return; }
+      T(si.nivel, base + 1.5, y, { s: 8 }); T(si.ev ? 'Eval.' : si.fin ? 'Fin' : si.n, base + 11.5, y, { s: 8 });
+      T(fix1(s.final), base + 24.5, y, { b: 1, s: 8.5, c: s.final != null && s.final < S.cfg.esc.aprob ? bajo : navy }); T(s.aprob == null ? '—' : s.aprob + '%', base + 36.5, y, { s: 8 });
+    });
+    const si = matsDe(g.id).indexOf('ingles') >= 0 ? sigClase(g.id, 'ingles') : null, bl2 = si && !si.fin && !si.ev ? bloqueDe('ingles', si.nivel, si.n) : null;
+    T(si ? (si.ev ? 'Fase de evaluación' : bl2 ? bl2.tema : '—') : '—', m + w - (w - 119) + 1.5, y, { s: 7.5, c: ink });
+    y += 7.2;
+  });
+  // criterios
+  y += 6; sec('Promedio general por criterio de evaluación', m, y, w); y += 8;
+  mats.forEach(mt => {
+    T(MAT_NOMBRE[mt], m, y, { b: 1, s: 8.5, c: col[mt] }); y += 4.5;
+    tot[mt].crit.forEach(cr => { T(cr.c.nombre + ' (' + cr.c.peso + '%)', m, y + 2.2, { s: 8 }); doc.setFillColor(232, 236, 244); doc.rect(m + 60, y, 90, 2.8, 'F'); if (cr.v != null) { doc.setFillColor(...col[mt]); doc.rect(m + 60, y, 90 * (cr.v - mn) / (mx - mn), 2.8, 'F'); } T(fix1(cr.v), m + 153, y + 2.4, { b: 1, s: 8.5 }); y += 5.6; });
+    y += 2;
+  });
+  // lectura rápida y firmas
+  const mejores = []; mats.forEach(mt => { const l = gs.filter(g => stat[g.id][mt] && stat[g.id][mt].final != null).sort((a, b) => stat[b.id][mt].final - stat[a.id][mt].final); if (l.length > 1) mejores.push(MAT_NOMBRE[mt] + ': mayor promedio ' + gNombre(l[0].id) + ' (' + fix1(stat[l[0].id][mt].final) + '); mayor oportunidad de apoyo ' + gNombre(l[l.length - 1].id) + ' (' + fix1(stat[l[l.length - 1].id][mt].final) + ').'); });
+  y += 2; sec('Lectura rápida', m, y, w); y += 7;
+  (mejores.length ? mejores : ['Aún no hay calificaciones capturadas en este periodo.']).forEach(t => { const ls = doc.splitTextToSize(t, w); T(ls.join('\n'), m, y, { s: 8.5 }); y += ls.length * 4.4; });
+  const fy = 252; doc.setDrawColor(...ink); doc.setLineWidth(0.3); doc.line(m + 8, fy, m + 78, fy); doc.line(Wd - m - 78, fy, Wd - m - 8, fy);
+  T(S.cfg.maestro, m + 43, fy + 4.5, { s: 8, a: 'center' }); T('Maestro de Inglés y Computación', m + 43, fy + 8.5, { s: 7, c: gris, a: 'center' });
+  T(S.cfg.director || 'Director(a)', Wd - m - 43, fy + 4.5, { s: 8, a: 'center' }); T('Dirección escolar · Vo. Bo.', Wd - m - 43, fy + 8.5, { s: 7, c: gris, a: 'center' });
+  pie(2);
+  descargar('informe-direccion-' + (per === 'anual' ? 'anual' : 't' + per) + '.pdf', doc.output('arraybuffer'));
+};
+CHG.infP = el => { S.ui.infP = el.value; };
