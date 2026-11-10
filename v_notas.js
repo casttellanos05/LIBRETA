@@ -14,7 +14,7 @@ const fmtNota = v => (v == null ? '—' : (S.cfg.redondeo === 'entero' ? String(
 VIEWS.notas = function () {
   const n = notaSel();
   if (!n) return '<div class="card empty">Primero da de alta tus grupos y alumnos en <b>Grupos</b>.</div>';
-  const al = alumnosDe(n.g), crit = S.cfg.criterios, per = S.cfg.periodos;
+  const al = alumnosDe(n.g), crit = critDe(n.m), per = S.cfg.periodos;
   let h = '<div class="row sp" style="margin-bottom:10px"><div><h2>Calificaciones</h2><div class="muted">Escribe y se guarda solo. Enter baja al siguiente alumno; también puedes pegar una columna desde Excel.</div></div></div>';
   h += '<div class="card"><div class="row"><label class="f">Grupo<select data-chg="nSel|g">' + ordenGrupos().map(g => '<option value="' + g.id + '"' + (g.id === n.g ? ' selected' : '') + '>' + gNombre(g.id) + '</option>').join('') + '</select></label>' +
     '<div class="f">Materia<div class="seg">' + matsDe(n.g).map(m => '<button class="' + (n.m === m ? 'on' : '') + '" data-act="nSet|m|' + m + '">' + MAT_NOMBRE[m] + '</button>').join('') + '</div></div>' +
@@ -35,7 +35,7 @@ VIEWS.notas = function () {
   return h;
 };
 function promedioPie(n) {
-  const al = alumnosDe(n.g), crit = S.cfg.criterios;
+  const al = alumnosDe(n.g), crit = critDe(n.m);
   const prom = c => { const v = al.map(a => { const d = calDoc(a.id, n.m); return d && d.p && d.p[n.p] ? d.p[n.p][c] : null; }).filter(num); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
   const fv = al.map(a => notaPeriodo(calDoc(a.id, n.m), n.p)).filter(x => x != null);
   const pf = fv.length ? fv.reduce((s, x) => s + x, 0) / fv.length : null, ap = fv.length ? Math.round(100 * fv.filter(x => x >= S.cfg.esc.aprob).length / fv.length) : null;
@@ -84,7 +84,7 @@ document.addEventListener('paste', e => {
   const el = e.target; if (!el.classList || !el.classList.contains('gi') || el.dataset.r == null) return;
   const txt = (e.clipboardData || window.clipboardData).getData('text'); if (!/[\n\t]/.test(txt.trim())) return;
   e.preventDefault();
-  const r0 = Number(el.dataset.r), c0 = Number(el.dataset.c), crit = S.cfg.criterios, al = alumnosDe(S.ui.n.g), n = S.ui.n;
+  const r0 = Number(el.dataset.r), c0 = Number(el.dataset.c), crit = critDe(S.ui.n.m), al = alumnosDe(S.ui.n.g), n = S.ui.n;
   txt.trim().split(/\r?\n/).forEach((line, i) => line.split('\t').forEach((cell, j) => {
     const a = al[r0 + i], c = crit[c0 + j]; if (!a || !c) return; const v = parseNota(cell);
     if (v === undefined || (v !== '' && (v < 0 || v > 10))) return; setCrit(a.id, n.m, String(n.p), c.id, v === '' ? null : v);
@@ -92,103 +92,126 @@ document.addEventListener('paste', e => {
   render();
 });
 
-/* ---------- Boletas ---------- */
+/* ---------- Boletas: una hoja Carta por alumno, con ambas materias ---------- */
 function boletaDatos(a) {
-  const g = S.grupos[a.grupoId], mats = matsDe(a.grupoId);
-  return mats.map(m => {
-    const d = calDoc(a.id, m), pers = [1, 2, 3].map(p => notaPeriodo(d, p));
-    let obs = ''; for (let p = 3; p >= 1; p--) { if (d && d.p && d.p[p] && d.p[p].obs) { obs = d.p[p].obs; break; } }
-    return { mat: m, nombre: MAT_NOMBRE[m], pers, anual: pers.every(x => x != null) ? notaAnual(d) : null, obs };
+  return matsDe(a.grupoId).map(m => {
+    const d = calDoc(a.id, m), crit = critDe(m), pers = [1, 2, 3].map(p => notaPeriodo(d, p));
+    return {
+      mat: m, nombre: MAT_NOMBRE[m], nivel: nivelDe(a.grupoId, m), crit, pers, anual: pers.every(x => x != null) ? notaAnual(d) : null,
+      vals: crit.map(c => [1, 2, 3].map(p => { const v = d && d.p && d.p[p] ? d.p[p][c.id] : null; return num(v) ? v : null; })),
+      obs: [1, 2, 3].map(p => (d && d.p && d.p[p] && d.p[p].obs) || '')
+    };
   });
 }
 function boletaPanel(n, al) {
-  const sel = S.ui.bsel && S.alumnos[S.ui.bsel] && S.alumnos[S.ui.bsel].grupoId === n.g ? S.ui.bsel : al[0].id, a = S.alumnos[sel], g = S.grupos[n.g];
-  const D = boletaDatos(a);
-  let h = '<div class="card"><h3>Boletas</h3><div class="row"><label class="f">Vista previa<select data-chg="bSel">' + al.map(x => '<option value="' + x.id + '"' + (x.id === sel ? ' selected' : '') + '>' + esc(x.nombre) + '</option>').join('') + '</select></label>' +
-    '<button class="btn pri" data-act="bolGrupo" style="align-self:flex-end">PDF del grupo (2 por hoja)</button><button class="btn" data-act="bolUna" style="align-self:flex-end">PDF de este alumno</button></div>';
-  h += '<div class="boleta" style="margin-top:12px"><h5>' + esc(S.cfg.escuela.toUpperCase()) + '</h5><div class="sub">BOLETA DE EVALUACIÓN · ' + matsDe(n.g).map(m => MAT_NOMBRE[m].toUpperCase()).join(' Y ') + '</div><div class="sub" style="color:#0f1b33;font-weight:500">Ciclo escolar ' + esc(S.cfg.ciclo) + '</div><div class="rule"></div>' +
-    '<div class="row sp"><div><div class="lab">ALUMNO</div><div style="font:700 19px var(--serif)">' + esc(a.nombre) + '</div></div><div style="text-align:right"><div class="lab">GRADO Y GRUPO</div><div style="font:700 19px var(--serif)">' + gNombre(n.g) + '</div></div></div><div class="rule"></div>' +
-    '<table><tr><th>Asignatura</th>' + S.cfg.periodos.map(p => '<th>' + esc(p) + '</th>').join('') + '<th>Promedio final</th></tr>' + D.map(r => '<tr><td>' + r.nombre + '</td>' + r.pers.map(x => '<td>' + fmtNota(x) + '</td>').join('') + '<td style="font-weight:700">' + fmtNota(r.anual) + '</td></tr>').join('') + '</table>' +
-    '<div class="lab" style="margin-top:10px">OBSERVACIONES</div><div class="obs">' + (D.filter(r => r.obs).map(r => '<b>' + r.nombre + ':</b> ' + esc(r.obs)).join('<br>') || '&nbsp;') + '</div>' +
-    '<div class="small" style="margin-top:6px;color:#6b6a60">Escala ' + S.cfg.esc.min + ' a ' + S.cfg.esc.max + ' · Aprobatorio ' + S.cfg.esc.aprob + ' · ' + S.cfg.criterios.map(c => c.nombre + ' ' + c.peso + '%').join(', ') + '</div>' +
-    '<div class="firmas"><div>' + esc(g.maestro || 'Maestro(a) de grupo') + '<br>Maestro(a) de grupo</div><div>' + esc(S.cfg.maestro) + '<br>Maestro de ' + matsDe(n.g).map(m => MAT_NOMBRE[m]).join(' y ') + '</div><div>' + esc(S.cfg.director || 'Director(a)') + '<br>Director(a)</div></div></div></div>';
+  const sel = S.ui.bsel && S.alumnos[S.ui.bsel] && S.alumnos[S.ui.bsel].grupoId === n.g ? S.ui.bsel : al[0].id, a = S.alumnos[sel];
+  const D = boletaDatos(a), r2p = S.ui.rep2 || 2, imp = S.cfg.imp || { x: 0, y: 0 };
+  let h = '<div class="card"><h3>Boletas</h3><div class="muted" style="margin:0 0 10px">Una hoja tamaño Carta por alumno, con Inglés y Computación, calificaciones desglosadas, observaciones y firmas de los tres trimestres.</div><div class="row"><label class="f">Vista previa<select data-chg="bSel">' + al.map(x => '<option value="' + x.id + '"' + (x.id === sel ? ' selected' : '') + '>' + esc(x.nombre) + '</option>').join('') + '</select></label>' +
+    '<button class="btn pri" data-act="bolGrupo" style="align-self:flex-end">PDF del grupo</button><button class="btn" data-act="bolUna" style="align-self:flex-end">PDF de este alumno</button></div>';
+  h += '<div class="boleta" style="margin-top:12px"><h5>' + esc(S.cfg.escuela.toUpperCase()) + '</h5><div class="sub">BOLETA DE EVALUACIÓN · ' + D.map(r => r.nombre.toUpperCase()).join(' Y ') + '</div><div class="rule"></div>' +
+    '<div class="row sp" style="flex-wrap:nowrap"><div style="min-width:0"><div class="lab">ALUMNO</div><div style="font:700 15px var(--serif)">' + esc(a.nombre) + '</div></div><div style="text-align:right;flex:none"><div class="lab">GRADO Y GRUPO</div><div style="font:700 15px var(--serif)">' + gNombre(n.g) + '</div></div></div>' +
+    D.map(r => '<div class="lab" style="margin-top:12px">' + r.nombre.toUpperCase() + ' · NIVEL ' + r.nivel + ' ' + esc(nomNivel(r.mat, r.nivel)).toUpperCase() + '</div><table><tr><th>Criterio</th>' + ['1.er', '2.º', '3.er'].map(p => '<th>' + p + ' trim</th>').join('') + '<th>Final</th></tr>' +
+      r.crit.map((c, i) => '<tr><td>' + esc(c.nombre) + ' <span style="font-weight:400;color:#6b6a60">' + c.peso + '%</span></td>' + r.vals[i].map(x => '<td>' + fmtNota(x) + '</td>').join('') + '<td></td></tr>').join('') +
+      '<tr><td><b>Calificación del trimestre</b></td>' + r.pers.map(x => '<td><b>' + fmtNota(x) + '</b></td>').join('') + '<td><b>' + fmtNota(r.anual) + '</b></td></tr></table>').join('') + '</div></div>';
+  h += '<div class="card"><h3>Reimprimir sobre la hoja ya impresa</h3><p class="muted" style="margin:0 0 10px">Para el 2.º y 3.er trimestre: el PDF trae solo lo nuevo (calificaciones y observaciones del trimestre) en su lugar exacto. Mete en la impresora la hoja que ya imprimiste, con la misma orientación, e imprime al <b>100 % (tamaño real)</b>, sin “ajustar a la página”.</p>' +
+    '<div class="row"><label class="f">Trimestre a agregar<select data-chg="rep2"><option value="2"' + (r2p === 2 ? ' selected' : '') + '>2.º trimestre</option><option value="3"' + (r2p === 3 ? ' selected' : '') + '>3er trimestre (incluye promedio final)</option></select></label>' +
+    '<button class="btn pri" data-act="bolSolo|g" style="align-self:flex-end">Solo lo nuevo · grupo</button><button class="btn" data-act="bolSolo|a" style="align-self:flex-end">Solo lo nuevo · este alumno</button><button class="btn ghost" data-act="bolPrueba" style="align-self:flex-end">Hoja de prueba</button></div>' +
+    '<div class="small muted" style="margin-top:8px">La hoja de prueba dibuja solo recuadros punteados: imprímela sobre una boleta vieja y revisa que caigan dentro de las casillas. Si no, corrige aquí (en milímetros; positivo mueve a la derecha o hacia abajo): <span class="row" style="display:inline-flex;gap:6px;vertical-align:middle"><input style="width:64px" inputmode="decimal" value="' + (imp.x || 0) + '" data-chg="impOff|x"> horizontal <input style="width:64px" inputmode="decimal" value="' + (imp.y || 0) + '" data-chg="impOff|y"> vertical</span></div></div>';
   return h;
 }
 CHG.bSel = el => { S.ui.bsel = el.value; render(); };
+CHG.rep2 = el => { S.ui.rep2 = Number(el.value); render(); };
+CHG.impOff = (el, k) => { const v = parseFloat(String(el.value).replace(',', '.')); cfgSet(c => { c.imp = Object.assign({ x: 0, y: 0 }, c.imp); c.imp[k] = isNaN(v) ? 0 : Math.max(-20, Math.min(20, v)); }); render(); };
 
-function dibujaBoleta(doc, a, y0) {
-  const Wd = 215.9, H = 139.7, m = 14, w = Wd - 2 * m;
-  const navy = [15, 27, 51], gold = [36, 87, 214], ink = [60, 60, 70];
-  const D = boletaDatos(a), g = S.grupos[a.grupoId], per = S.cfg.periodos;
-  doc.setLineWidth(0.6); doc.setDrawColor(...navy); doc.rect(m - 6, y0 + 6, w + 12, H - 12);
-  doc.setLineWidth(0.25); doc.setDrawColor(...gold); doc.rect(m - 4.2, y0 + 7.8, w + 8.4, H - 15.6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...navy); doc.text(S.cfg.escuela.toUpperCase(), Wd / 2, y0 + 18, { align: 'center' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...gold);
-  const sub = 'BOLETA DE EVALUACIÓN · ' + D.map(r => r.nombre.toUpperCase()).join(' Y ');
-  if (doc.setCharSpace) { const sw = doc.getTextWidth(sub) + 1 * (sub.length - 1); doc.setCharSpace(1); doc.text(sub, (Wd - sw) / 2, y0 + 24); doc.setCharSpace(0); }
-  else doc.text(sub, Wd / 2, y0 + 24, { align: 'center' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...navy); doc.text('Ciclo escolar ' + S.cfg.ciclo, Wd / 2, y0 + 28.5, { align: 'center' });
-  doc.setDrawColor(...gold); doc.setLineWidth(0.4); doc.line(m, y0 + 32, m + w, y0 + 32);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...gold); doc.text('ALUMNO', m, y0 + 38);
-  doc.text('GRADO Y GRUPO', m + w, y0 + 38, { align: 'right' });
-  let fs = 14; doc.setFont('helvetica', 'bold'); doc.setTextColor(...navy);
-  do { doc.setFontSize(fs); fs -= 0.5; } while (doc.getTextWidth(a.nombre) > w - 50 && fs > 8);
-  doc.text(a.nombre, m, y0 + 44.5);
-  doc.setFontSize(14); doc.text(g.grado + '.º ' + g.letra, m + w, y0 + 44.5, { align: 'right' });
-  doc.setDrawColor(...gold); doc.setLineWidth(0.2); doc.line(m, y0 + 48, m + w, y0 + 48);
-  // tabla
-  const cw = [58, 30, 30, 30, w - 58 - 90], ty = y0 + 54, rh = 10;
-  doc.setFillColor(...navy); doc.rect(m, ty, w, 8, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  let x = m; const hd = ['ASIGNATURA'].concat(per.map(p => p.toUpperCase()), ['PROMEDIO FINAL']);
-  hd.forEach((t, i) => { if (i === 0) doc.text(t, x + 3, ty + 5.3); else doc.text(t, x + cw[i] / 2, ty + 5.3, { align: 'center' }); x += cw[i]; });
-  D.forEach((r, k) => {
-    const y = ty + 8 + k * rh;
-    if (k % 2 === 1) { doc.setFillColor(238, 241, 246); doc.rect(m, y, w, rh, 'F'); }
-    doc.setDrawColor(223, 228, 236); doc.setLineWidth(0.2); doc.line(m, y + rh, m + w, y + rh);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...navy); doc.text(r.nombre, m + 3, y + 6.5);
-    let xx = m + cw[0];
-    r.pers.concat([r.anual]).forEach((v, i) => {
-      const last = i === 3; doc.setFont(last ? 'helvetica' : 'helvetica', 'bold'); doc.setFontSize(last ? 13 : 10.5);
-      if (v == null) doc.setTextColor(170, 170, 170); else if (last && v < S.cfg.esc.aprob) doc.setTextColor(176, 58, 42); else doc.setTextColor(...navy);
-      doc.text(fmtNota(v), xx + cw[i + 1] / 2, y + 6.8, { align: 'center' }); xx += cw[i + 1];
-    });
-  });
-  const ey = ty + 8 + D.length * rh;
-  doc.setDrawColor(...navy); doc.setLineWidth(0.4); doc.line(m, ey, m + w, ey);
-  // observaciones
-  const oy = ey + 6; doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...gold); doc.text('OBSERVACIONES', m, oy);
-  doc.setFillColor(238, 241, 246); doc.roundedRect(m, oy + 1.5, w, 21, 1.5, 1.5, 'F');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...ink);
-  const ob = D.filter(r => r.obs).map(r => r.nombre + ': ' + r.obs).join('   '); if (ob) doc.text(doc.splitTextToSize(ob, w - 6).slice(0, 4), m + 3, oy + 6.5);
-  // pie
-  doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
-  doc.text('Escala ' + S.cfg.esc.min + ' a ' + S.cfg.esc.max + '. Calificación aprobatoria: ' + S.cfg.esc.aprob + '. Evaluación: ' + S.cfg.criterios.map(c => c.nombre + ' ' + c.peso + '%').join(', ') + '.', m, oy + 27.5);
-  const fy = y0 + 124; doc.setDrawColor(...navy); doc.setLineWidth(0.3);
-  const fw = (w - 16) / 3, fl = [[g.maestro || '', 'Maestro(a) de grupo'], [S.cfg.maestro, 'Maestro de ' + D.map(r => r.nombre).join(' y ')], [S.cfg.director || '', 'Director(a)']];
-  fl.forEach((f, i) => {
-    const fx = m + i * (fw + 8); doc.line(fx, fy, fx + fw, fy);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(...navy); doc.text(f[0] || ' ', fx + fw / 2, fy + 3.3, { align: 'center', maxWidth: fw });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120); doc.text(f[1], fx + fw / 2, fy + 6.6, { align: 'center', maxWidth: fw });
-  });
+function bolLay(nm) {
+  const one = nm === 1, L = { m: 14, w: 187.9, labW: 74 };
+  L.colW = (L.w - L.labW) / 4; L.tit = one ? 8 : 6.5; L.desc = one ? 17 : 9; L.th = one ? 7 : 6; L.cr = one ? 8.5 : 5.8; L.pr = one ? 8.5 : 6.5; L.gap = 5; L.ob = one ? 28 : 8.2;
+  L.hb = L.tit + L.desc + L.th + 3 * L.cr + L.pr + L.gap + 3 * L.ob; L.y0 = 58; L.sep = 3;
+  return L;
 }
-function boletasPDF(lista) {
-  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' });
-  lista.forEach((a, i) => {
-    if (i > 0 && i % 2 === 0) doc.addPage();
-    dibujaBoleta(doc, a, (i % 2) * 139.7);
-    if (i % 2 === 0) { doc.setLineDashPattern([2, 2], 0); doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.2); doc.line(5, 139.7, 210.9, 139.7); doc.setLineDashPattern([], 0); }
+/* solo = null (hoja completa) | 2 | 3 (solo lo nuevo de ese trimestre); prueba = recuadros punteados de ese trimestre */
+function dibujaBoleta(doc, a, solo, prueba) {
+  const D = boletaDatos(a), g = S.grupos[a.grupoId], nm = D.length, L = bolLay(nm), Wd = 215.9, per = S.cfg.periodos, imp = S.cfg.imp || {};
+  const ox = solo ? Number(imp.x) || 0 : 0, oy = solo ? Number(imp.y) || 0 : 0, st = !solo;
+  const navy = [15, 27, 51], blue = [36, 87, 214], ink = [50, 54, 66], gris = [120, 126, 140], rojo = [192, 57, 43], linea = [200, 207, 220], claro = [238, 242, 250];
+  const fill = c => doc.setFillColor(...c), draw = c => doc.setDrawColor(...c);
+  const R = (x, y, w, h, s) => doc.rect(x + ox, y + oy, w, h, s), LN = (x1, y1, x2, y2) => doc.line(x1 + ox, y1 + oy, x2 + ox, y2 + oy);
+  const T = (t, x, y, o) => { o = o || {}; doc.setFont('helvetica', o.i ? 'italic' : o.b ? 'bold' : 'normal'); doc.setFontSize(o.s || 9); doc.setTextColor(...(o.c || ink)); doc.text(String(t), x + ox, y + oy, o.a ? { align: o.a } : undefined); };
+  const col = p => L.m + L.labW + (p - 1) * L.colW, mid = p => col(p) + L.colW / 2;
+  const nota = (v, y, s, b) => { if (v == null) return; T(fmtNota(v), v === v ? 0 : 0, y, {}); };
+  if (st) {
+    doc.setLineWidth(0.6); draw(navy); R(8, 8, Wd - 16, 263.4); doc.setLineWidth(0.25); draw(blue); R(9.8, 9.8, Wd - 19.6, 259.8);
+    T(S.cfg.escuela.toUpperCase(), Wd / 2, 21, { b: 1, s: 17, c: navy, a: 'center' });
+    const sub = 'BOLETA DE EVALUACIÓN · ' + D.map(r => r.nombre.toUpperCase()).join(' Y ');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...blue);
+    if (doc.setCharSpace) { const sw = doc.getTextWidth(sub) + (sub.length - 1) * 0.8; doc.setCharSpace(0.8); doc.text(sub, (Wd - sw) / 2 + ox, 27.5 + oy); doc.setCharSpace(0); } else T(sub, Wd / 2, 27.5, { b: 1, s: 8, c: blue, a: 'center' });
+    T('Ciclo escolar ' + S.cfg.ciclo, Wd / 2, 32.5, { s: 8.5, c: navy, a: 'center' });
+    doc.setLineWidth(0.3); draw(blue); LN(L.m, 36, L.m + L.w, 36);
+    T('ALUMNO', L.m, 42, { b: 1, s: 7, c: blue }); T(a.nombre, L.m, 49.5, { b: 1, s: 14, c: navy });
+    T('GRADO Y GRUPO', L.m + L.w, 42, { b: 1, s: 7, c: blue, a: 'right' }); T(gNombre(a.grupoId), L.m + L.w, 49.5, { b: 1, s: 14, c: navy, a: 'right' });
+    if (g && g.maestro) T('Maestro(a) de grupo: ' + g.maestro, L.m, 54.5, { s: 7.5, c: gris });
+    LN(L.m, 56.5, L.m + L.w, 56.5);
+  }
+  D.forEach((r, bi) => {
+    const y = L.y0 + bi * (L.hb + L.sep), dd = bi * 0; let yy = y;
+    const yT = y, yD = y + L.tit, yH = yD + L.desc, yC = yH + L.th, yP = yC + 3 * L.cr, yO = yP + L.pr + L.gap;
+    if (st) {
+      fill(navy); R(L.m, yT, L.w, L.tit, 'F'); T(r.nombre.toUpperCase(), L.m + 3, yT + L.tit / 2 + 1.4, { b: 1, s: L.tit > 7 ? 10.5 : 9, c: [255, 255, 255] });
+      T('Nivel ' + r.nivel + ' · ' + nomNivel(r.mat, r.nivel), L.m + L.w - 3, yT + L.tit / 2 + 1.4, { s: L.tit > 7 ? 9.5 : 8.5, c: [190, 205, 240], a: 'right' });
+      const fs = nm === 1 ? 9 : 7.8, ls = doc.setFontSize(fs).splitTextToSize(descNivel(r.mat, r.nivel), L.w - 6).slice(0, nm === 1 ? 4 : 2);
+      ls.forEach((t, i) => T(t, L.m + 3, yD + 4.2 + i * (fs * 0.42), { i: 1, s: fs, c: ink }));
+      fill([226, 232, 244]); R(L.m, yH, L.w, L.th, 'F'); T('Criterio de evaluación', L.m + 3, yH + L.th / 2 + 1.3, { b: 1, s: 7.5, c: navy });
+      [1, 2, 3].forEach(p => T(per[p - 1], mid(p), yH + L.th / 2 + 1.3, { b: 1, s: 7.5, c: navy, a: 'center' })); T('Promedio final', mid(4), yH + L.th / 2 + 1.3, { b: 1, s: 7.5, c: navy, a: 'center' });
+      draw(linea); doc.setLineWidth(0.2);
+      r.crit.forEach((c, i) => { const cy = yC + i * L.cr; LN(L.m, cy + L.cr, L.m + L.w, cy + L.cr); T(c.nombre, L.m + 3, cy + L.cr / 2 + 1.3, { s: 8.5 }); T(c.peso + '%', L.m + L.labW - 3, cy + L.cr / 2 + 1.3, { s: 7.5, c: gris, a: 'right' }); });
+      fill(claro); R(L.m, yP, L.w, L.pr, 'F'); fill([220, 229, 250]); R(col(4), yP, L.colW, L.pr, 'F'); T('Calificación del trimestre', L.m + 3, yP + L.pr / 2 + 1.4, { b: 1, s: 8.5, c: navy });
+      draw(linea); for (let k = 0; k <= 4; k++) LN(L.m + L.labW + k * L.colW, yH, L.m + L.labW + k * L.colW, yP + L.pr); LN(L.m, yP + L.pr, L.m + L.w, yP + L.pr);
+      draw(navy); doc.setLineWidth(0.3); R(L.m, yH, L.w, yP + L.pr - yH);
+      T('OBSERVACIONES', L.m, yO - 1.4, { b: 1, s: 6.5, c: blue });
+      [1, 2, 3].forEach(p => { const oyy = yO + (p - 1) * L.ob; draw(linea); doc.setLineWidth(0.2); R(L.m, oyy, 22, L.ob); R(L.m + 22, oyy, L.w - 22, L.ob); fill(claro); R(L.m, oyy, 22, L.ob, 'F'); R(L.m, oyy, 22, L.ob); T(per[p - 1], L.m + 11, oyy + L.ob / 2 + 1.2, { b: 1, s: 6.8, c: navy, a: 'center' }); });
+    }
+    // contenido que cambia en cada trimestre
+    [1, 2, 3].forEach(p => {
+      if (solo && p !== solo) return;
+      if (prueba) { draw(blue); doc.setLineWidth(0.25); doc.setLineDashPattern([1.2, 1.2], 0); r.crit.forEach((c, i) => R(col(p) + 1, yC + i * L.cr + 0.8, L.colW - 2, L.cr - 1.6)); R(col(p) + 1, yP + 0.8, L.colW - 2, L.pr - 1.6); R(L.m + 23, yO + (p - 1) * L.ob + 1, L.w - 24, L.ob - 2); doc.setLineDashPattern([], 0); return; }
+      r.crit.forEach((c, i) => { const v = r.vals[i][p - 1]; if (v != null) T(fmtNota(v), mid(p), yC + i * L.cr + L.cr / 2 + 1.4, { s: 9.5, a: 'center' }); });
+      const np = r.pers[p - 1]; if (np != null) T(fmtNota(np), mid(p), yP + L.pr / 2 + 1.9, { b: 1, s: 11, c: np < S.cfg.esc.aprob ? rojo : navy, a: 'center' });
+      const ob = (r.obs[p - 1] || '').trim();
+      if (ob) {
+        const maxW = L.w - 28, rows = [[8.5, 2], [8, 2], [7.5, 3], [7, 3], [6.5, 4]]; let ok = null;
+        const lim = nm === 1 ? [[10, 5], [9.5, 5], [9, 5]] : rows;
+        for (const [fs, mx] of lim) { const ls = doc.setFontSize(fs).splitTextToSize(ob, maxW), lh = fs * 0.42; if (ls.length <= mx && ls.length * lh <= L.ob - 1.5) { ok = { fs, ls, lh }; break; } }
+        if (!ok) { const fs = 6.5, lh = fs * 0.42, mx = Math.max(1, Math.floor((L.ob - 1.5) / lh)); ok = { fs, ls: doc.setFontSize(fs).splitTextToSize(ob, maxW).slice(0, mx), lh }; }
+        const oyy = yO + (p - 1) * L.ob, h0 = ok.ls.length * ok.lh, y1 = oyy + (L.ob - h0) / 2 + ok.fs * 0.3;
+        ok.ls.forEach((t, i) => T(t, L.m + 25, y1 + i * ok.lh, { s: ok.fs }));
+      }
+    });
+    if ((!solo || solo === 3) && !prueba && r.anual != null) T(fmtNota(r.anual), mid(4), yP + L.pr / 2 + 1.9, { b: 1, s: 11.5, c: r.anual < S.cfg.esc.aprob ? rojo : blue, a: 'center' });
+    if (prueba && (solo === 3)) { draw(blue); doc.setLineDashPattern([1.2, 1.2], 0); doc.setLineWidth(0.25); R(col(4) + 1, yP + 0.8, L.colW - 2, L.pr - 1.6); doc.setLineDashPattern([], 0); }
   });
+  if (st) {
+    const sy = L.y0 + nm * L.hb + (nm - 1) * L.sep + 5;
+    T('Nombre del padre, madre o tutor:', L.m, sy + 3, { b: 1, s: 8, c: navy }); draw(navy); doc.setLineWidth(0.25); LN(L.m + 52, sy + 3.3, L.m + L.w, sy + 3.3);
+    const bw = (L.w - 8) / 3;
+    [1, 2, 3].forEach(p => { const bx = L.m + (p - 1) * (bw + 4); draw(linea); doc.setLineWidth(0.3); R(bx, sy + 7, bw, 21); draw(navy); doc.setLineWidth(0.25); LN(bx + 5, sy + 22, bx + bw - 5, sy + 22); T('Firma de enterado(a)', bx + bw / 2, sy + 25.5, { s: 6.5, c: gris, a: 'center' }); T(per[p - 1].toUpperCase(), bx + bw / 2, sy + 11.5, { b: 1, s: 7, c: blue, a: 'center' }); });
+    const ty = sy + 40, fw = (L.w - 16) / 2; draw(navy); doc.setLineWidth(0.3);
+    [[S.cfg.maestro, 'Maestro de ' + D.map(r => r.nombre).join(' y '), L.m + 4], [S.cfg.director || '', 'Director(a) de la escuela', L.m + L.w - fw - 4]].forEach(f => { LN(f[2], ty, f[2] + fw, ty); T(f[0], f[2] + fw / 2, ty + 4, { s: 8, a: 'center' }); T(f[1], f[2] + fw / 2, ty + 8, { s: 6.8, c: gris, a: 'center' }); });
+    T('Escala de ' + S.cfg.esc.min + ' a ' + S.cfg.esc.max + '. Calificación aprobatoria: ' + S.cfg.esc.aprob + '.', Wd / 2, 266.2, { s: 6.5, c: gris, a: 'center' });
+  }
+}
+function boletasPDF(lista, solo, prueba) {
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' });
+  lista.forEach((a, i) => { if (i > 0) doc.addPage(); dibujaBoleta(doc, a, solo, prueba); });
   return doc.output('arraybuffer');
 }
-ACT.bolGrupo = async () => {
-  if (!(await asegurarPDF())) return;
-  const n = S.ui.n, al = alumnosDe(n.g); descargar('boletas-' + n.g + '.pdf', boletasPDF(al));
+ACT.bolGrupo = async () => { if (!(await asegurarPDF())) return; const n = S.ui.n; descargar('boletas-' + n.g + '.pdf', boletasPDF(alumnosDe(n.g))); };
+const alumnoSel = () => { const n = S.ui.n; return S.alumnos[S.ui.bsel && S.alumnos[S.ui.bsel] && S.alumnos[S.ui.bsel].grupoId === n.g ? S.ui.bsel : alumnosDe(n.g)[0].id]; };
+ACT.bolUna = async () => { if (!(await asegurarPDF())) return; const a = alumnoSel(); descargar('boleta-' + a.id + '.pdf', boletasPDF([a])); };
+ACT.bolSolo = async (el, quien) => {
+  if (!(await asegurarPDF())) return; const p = S.ui.rep2 || 2, n = S.ui.n, lista = quien === 'a' ? [alumnoSel()] : alumnosDe(n.g);
+  descargar('boletas-solo-' + p + 'trim-' + (quien === 'a' ? lista[0].id : n.g) + '.pdf', boletasPDF(lista, p));
 };
-ACT.bolUna = async () => {
-  if (!(await asegurarPDF())) return;
-  const n = S.ui.n, a = S.alumnos[S.ui.bsel && S.alumnos[S.ui.bsel] ? S.ui.bsel : alumnosDe(n.g)[0].id]; descargar('boleta-' + a.id + '.pdf', boletasPDF([a]));
-};
+ACT.bolPrueba = async () => { if (!(await asegurarPDF())) return; descargar('hoja-de-prueba-' + (S.ui.rep2 || 2) + 'trim.pdf', boletasPDF([alumnoSel()], S.ui.rep2 || 2, true)); };
 
 /* Observaciones amables para la boleta */
 function obsGuarda(aid, texto) {

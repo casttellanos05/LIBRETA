@@ -93,10 +93,15 @@ async function putMany(coll, items, label) {
   await Promise.all([worker(), worker(), worker(), worker()]);
   toast(fails ? (label || 'Datos') + ': ' + fails + ' no se guardaron' : (label || 'Datos') + ' guardados (' + items.length + ')', fails ? 'bad' : 'ok');
 }
+function critDe(mat) { const c = S.cfg && S.cfg.crit; if (c && Array.isArray(c[mat]) && c[mat].length) return c[mat]; return mat === 'compu' ? CRIT_C_DEF : S.cfg.criterios; }
+function descNivel(mat, n) { const o = S.cfg && S.cfg.descNivel && S.cfg.descNivel[mat]; return (o && o[n]) || (DESC_NIVEL[mat] && DESC_NIVEL[mat][n]) || ''; }
 function mergeCfg(d) {
   const b = cl(CFG_DEF), o = Object.assign(b, d || {});
   o.esc = Object.assign({}, CFG_DEF.esc, (d && d.esc) || {});
   if (!Array.isArray(o.criterios) || !o.criterios.length) o.criterios = cl(CFG_DEF.criterios);
+  if (!o.crit || typeof o.crit !== 'object') o.crit = {};
+  if (!o.descNivel || typeof o.descNivel !== 'object') o.descNivel = {};
+  o.imp = Object.assign({ x: 0, y: 0 }, o.imp || {});
   if (!Array.isArray(o.periodos) || !o.periodos.length) o.periodos = cl(CFG_DEF.periodos);
   return o;
 }
@@ -249,7 +254,7 @@ function redond(x) { return S.cfg.redondeo === 'entero' ? Math.round(x) : Math.r
 function notaPeriodo(doc, per) {
   const p = doc && doc.p && doc.p[per]; if (!p) return null;
   let sw = 0, s = 0;
-  S.cfg.criterios.forEach(c => { const v = p[c.id]; if (num(v)) { s += v * c.peso; sw += c.peso; } });
+  critDe(doc.materia).forEach(c => { const v = p[c.id]; if (num(v)) { s += v * c.peso; sw += c.peso; } });
   return sw ? redond(clampNota(s / sw)) : null;
 }
 function notaAnual(doc) {

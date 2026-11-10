@@ -7,14 +7,14 @@ function notasGrupo(gid, mat, per) {
   return alumnosDe(gid).map(a => {
     const d = calDoc(a.id, mat), p = per === 'anual' ? null : (d && d.p && d.p[per]) || {};
     const o = { a, fin: per === 'anual' ? notaAnual(d) : notaPeriodo(d, per) };
-    S.cfg.criterios.forEach(c => { o[c.id] = p ? p[c.id] : null; });
+    critDe(mat).forEach(c => { o[c.id] = p ? p[c.id] : null; });
     return o;
   });
 }
 function statsGrupo(gid, mat, per) {
   const L = notasGrupo(gid, mat, per), fin = L.map(x => x.fin).filter(x => x != null);
   const st = { n: alumnosDe(gid).length, conNota: fin.length, final: avg(fin), aprob: fin.length ? Math.round(100 * fin.filter(x => x >= S.cfg.esc.aprob).length / fin.length) : null, dist: {} };
-  S.cfg.criterios.forEach(c => { st[c.id] = avg(L.map(x => x[c.id])); });
+  critDe(mat).forEach(c => { st[c.id] = avg(L.map(x => x[c.id])); });
   for (let k = S.cfg.esc.min; k <= S.cfg.esc.max; k++) st.dist[k] = 0;
   fin.forEach(x => { const k = Math.max(S.cfg.esc.min, Math.min(S.cfg.esc.max, Math.round(x))); st.dist[k]++; });
   return st;
@@ -28,15 +28,15 @@ const r2 = x => (x == null ? null : Math.round(x * 100) / 100);
 
 /* Documento de métricas: SOLO agregados, sin nombres ni notas individuales */
 function metricasDoc() {
-  const out = { actualizado: new Date().toISOString(), ciclo: S.cfg.ciclo, criterios: S.cfg.criterios.map(c => ({ id: c.id, nombre: c.nombre, peso: c.peso })), aprobatorio: S.cfg.esc.aprob, grupos: {}, grados: {}, niveles: {} };
+  const out = { actualizado: new Date().toISOString(), ciclo: S.cfg.ciclo, criterios: { ingles: critDe('ingles').map(c => ({ id: c.id, nombre: c.nombre, peso: c.peso })), compu: critDe('compu').map(c => ({ id: c.id, nombre: c.nombre, peso: c.peso })) }, aprobatorio: S.cfg.esc.aprob, grupos: {}, grados: {}, niveles: {} };
   const acumG = {}, acumN = {};
   ordenGrupos().forEach(g => {
-    const o = { grado: g.grado, nivel: g.nivel, nivelMeta: g.nivelMeta || null, alumnos: alumnosDe(g.id).length, avance: avanceDoc(g.id), bitacora: (() => { const b = bitStats(g.id); return { registros: b.n, animo: r2(b.animo), participacion: r2(b.part), planCumplido: b.planSi, planParcial: b.planParcial, planNoCumplido: b.planNo, repeticiones: b.repetir, etiquetas: b.tags }; })() };
+    const o = { grado: g.grado, nivel: g.nivel, alumnos: alumnosDe(g.id).length, avance: avanceDoc(g.id), bitacora: (() => { const b = bitStats(g.id); return { registros: b.n, animo: r2(b.animo), participacion: r2(b.part), planCumplido: b.planSi, planParcial: b.planParcial, planNoCumplido: b.planNo, repeticiones: b.repetir, etiquetas: b.tags }; })() };
     matsDe(g.id).forEach(m => {
       o[m] = {};
       [1, 2, 3, 'anual'].forEach(p => {
         const s = statsGrupo(g.id, m, p); if (!s.conNota) return;
-        const e = { conNota: s.conNota, final: r2(s.final), aprobadosPct: s.aprob, distribucion: s.dist }; S.cfg.criterios.forEach(c => { e[c.id] = r2(s[c.id]); });
+        const e = { conNota: s.conNota, final: r2(s.final), aprobadosPct: s.aprob, distribucion: s.dist }; critDe(m).forEach(c => { e[c.id] = r2(s[c.id]); });
         o[m][p === 'anual' ? 'anual' : 'p' + p] = e;
         if (p === 'anual') { (acumG[g.grado + '|' + m] = acumG[g.grado + '|' + m] || []).push(s.final); (acumN[g.nivel + '|' + m] = acumN[g.nivel + '|' + m] || []).push(s.final); }
       });
@@ -111,10 +111,10 @@ ACT.irClase = (el, id, mat) => {
 
 /* ---------- métricas de un alumno (para el menú de cada niño) ---------- */
 function aluMetricasHTML(a) {
-  const g = S.grupos[a.grupoId], crit = S.cfg.criterios; if (!g) return '';
+  const g = S.grupos[a.grupoId]; if (!g) return '';
   let h = '<div class="grid2">';
   matsDe(g.id).forEach(mat => {
-    const d = calDoc(a.id, mat), si = sigClase(g.id, mat);
+    const d = calDoc(a.id, mat), si = sigClase(g.id, mat), crit = critDe(mat);
     const rows = [1, 2, 3].map(p => { const fin = notaPeriodo(d, p); if (fin == null) return null; const gs = statsGrupo(g.id, mat, p); return { p, x: d.p[p], fin, gm: gs.final, gs }; }).filter(Boolean);
     h += '<div class="card flat" style="margin:0"><div class="row sp"><b>' + MAT_NOMBRE[mat] + '</b><span class="small muted">El grupo va en la clase ' + (si.fin ? '—' : si.n) + ' · Nivel ' + si.nivel + '</span></div>';
     if (!rows.length) h += '<div class="small muted" style="margin-top:6px">Aún no tiene calificaciones de ' + MAT_NOMBRE[mat] + '.</div>';
@@ -135,7 +135,7 @@ function aluMetricasHTML(a) {
 
 /* ---------- resumen general y por grado ---------- */
 function resumenGrupos(gs, mat, per) {
-  const fin = [], crit = {}, crs = S.cfg.criterios; crs.forEach(c => { crit[c.id] = []; });
+  const fin = [], crit = {}, crs = critDe(mat); crs.forEach(c => { crit[c.id] = []; });
   gs.forEach(g => notasGrupo(g.id, mat, per).forEach(x => { if (x.fin != null) fin.push(x.fin); crs.forEach(c => { if (num(x[c.id])) crit[c.id].push(x[c.id]); }); }));
   const bs = gs.map(g => bitStats(g.id)), part = avg(bs.map(b => b.part)), animo = avg(bs.map(b => b.animo));
   return { n: gs.reduce((s, g) => s + alumnosDe(g.id).length, 0), conNota: fin.length, final: avg(fin), aprob: fin.length ? Math.round(100 * fin.filter(x => x >= S.cfg.esc.aprob).length / fin.length) : null, crit: crs.map(c => ({ c, v: avg(crit[c.id]) })), part, animo, dadas: gs.reduce((s, g) => s + listaDadas(g.id, mat).length, 0) };
@@ -160,7 +160,7 @@ function avResumen() {
 
 function avMetricas() {
   const n = S.ui.met = S.ui.met || { m: 'ingles', p: 1 };
-  const per = n.p === 'anual' ? 'anual' : Number(n.p), crit = S.cfg.criterios, gs = ordenGrupos().filter(g => matsDe(g.id).indexOf(n.m) >= 0);
+  const per = n.p === 'anual' ? 'anual' : Number(n.p), crit = critDe(n.m), gs = ordenGrupos().filter(g => matsDe(g.id).indexOf(n.m) >= 0);
   let h = '<div class="card"><div class="row sp"><div class="row"><div class="seg">' + ['ingles', 'compu'].map(m => '<button class="' + (n.m === m ? 'on' : '') + '" data-act="metSet|m|' + m + '">' + MAT_NOMBRE[m] + '</button>').join('') + '</div><div class="seg">' + S.cfg.periodos.map((p, i) => '<button class="' + (n.p === i + 1 ? 'on' : '') + '" data-act="metSet|p|' + (i + 1) + '">' + esc(p) + '</button>').join('') + '<button class="' + (n.p === 'anual' ? 'on' : '') + '" data-act="metSet|p|anual">Anual</button></div></div>' +
     '<div class="row"><button class="btn pri" data-act="analizar">Copiar resumen para Claude</button></div></div>' +
     '<div class="small muted" style="margin-top:8px">El botón copia solo promedios por grupo, sin nombres ni calificaciones individuales. Pégalo en tu chat con Claude para que analice y proponga mejoras.</div></div>';
@@ -247,11 +247,11 @@ ACT.repPDF = async () => {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...ink); doc.text('Maestro: ' + S.cfg.maestro + (g.maestro ? '   ·   Titular: ' + g.maestro : ''), m + w, y, { align: 'right' }); y += 4;
   const bs = bitStats(gid);
   sec('Resumen');
-  txt('Alumnos: ' + alumnosDe(gid).length + '.   Nivel de inglés: ' + g.nivel + ' (' + nomNivel('ingles', g.nivel) + ')' + (g.nivelMeta ? ', meta ' + g.nivelMeta : '') + '.');
+  txt('Alumnos: ' + alumnosDe(gid).length + '.   Nivel de inglés: ' + g.nivel + ' (' + nomNivel('ingles', g.nivel) + ')' + '.');
   matsDe(gid).forEach(m => { const si = sigClase(gid, m); txt(MAT_NOMBRE[m] + ': nivel ' + si.nivel + ' (' + nomNivel(m, si.nivel) + '), ' + listaDadas(gid, m).length + ' clases impartidas, ' + si.pos + ' de ' + si.total + ' clases del plan completadas' + (si.fin ? '' : '; sigue la clase ' + si.n) + '.'); });
   matsDe(gid).forEach(mat => {
     sec('Resultados de ' + MAT_NOMBRE[mat]);
-    const crit = S.cfg.criterios, cols = [m, m + 40], per = [1, 2, 3, 'anual'];
+    const crit = critDe(mat), cols = [m, m + 40], per = [1, 2, 3, 'anual'];
     const hdr = ['Periodo'].concat(crit.map(c => c.nombre.replace('Participación en clase', 'Participación')), ['Final', 'Aprob.']);
     const cwid = [34].concat(crit.map(() => (w - 34 - 32) / crit.length), [16, 16]);
     doc.setFillColor(...navy); doc.rect(m, y - 4, w, 6.5, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255);

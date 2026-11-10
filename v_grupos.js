@@ -21,7 +21,6 @@ VIEWS.grupos = function () {
     '<div class="row" style="margin-top:10px"><label class="f">Maestro(a) titular<input value="' + esc(g.maestro || '') + '" data-chg="gCampo|' + sel + '|maestro"></label>' +
     '<label class="f">Nivel de inglés<select data-chg="gCampo|' + sel + '|nivel">' + NIVS.map(n => '<option value="' + n + '"' + (g.nivel === n ? ' selected' : '') + '>' + n + ' · ' + esc(nomNivel('ingles', n)) + '</option>').join('') + '</select></label>' +
     (matsDe(sel).indexOf('compu') >= 0 ? '<label class="f">Nivel de computación<select data-chg="gCampo|' + sel + '|nivelCompu">' + NIVS.map(n => '<option value="' + n + '"' + (nivelDe(sel, 'compu') === n ? ' selected' : '') + '>' + n + ' · ' + esc(nomNivel('compu', n)) + '</option>').join('') + '</select></label>' : '') +
-    '<label class="f">Meta de nivel (inglés)<select data-chg="gCampo|' + sel + '|nivelMeta"><option value="">—</option>' + NIVS.map(n => '<option value="' + n + '"' + (g.nivelMeta === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
     '<div class="f">Materias<div class="row"><label class="row small"><input type="checkbox" data-chg="gMat|' + sel + '|ingles"' + (matsDe(sel).indexOf('ingles') >= 0 ? ' checked' : '') + '> Inglés</label><label class="row small"><input type="checkbox" data-chg="gMat|' + sel + '|compu"' + (matsDe(sel).indexOf('compu') >= 0 ? ' checked' : '') + '> Computación</label></div></div></div></div>';
   h += '<div class="card"><div class="row sp"><h3 style="margin:0">Lista de alumnos (' + al.length + ')</h3><span class="muted small">' + pagan(sel) + ' pagan · ' + (al.length - pagan(sel)) + ' sin cobro</span></div>';
   h += '<div class="row" style="margin:10px 0"><input id="nuevoAlu" placeholder="Nombre completo del alumno" class="grow" data-enter="aluAdd"><button class="btn pri" data-act="aluAdd">Agregar</button></div>';
@@ -40,7 +39,7 @@ ACT.gNuevo = () => { S.ui.gNuevo = !S.ui.gNuevo; render(); };
 function nuevoGrupoDoc(grado, letra, maestro) {
   letra = String(letra || 'A').toUpperCase().trim().slice(0, 2);
   const id = grado + letra;
-  return { id, grado: Number(grado), letra, nivel: NIVEL_POR_GRADO[grado] || 1, nivelMeta: null, maestro: maestro || '', materias: grado === 1 ? ['ingles'] : ['ingles', 'compu'], ajuste: { ingles: 0 } };
+  return { id, grado: Number(grado), letra, nivel: NIVEL_POR_GRADO[grado] || 1, maestro: maestro || '', materias: grado === 1 ? ['ingles'] : ['ingles', 'compu'], ajuste: { ingles: 0 } };
 }
 ACT.gCrear = () => {
   const d = nuevoGrupoDoc(Number($('#ng').value), $('#nl').value, $('#nm').value.trim());
@@ -53,7 +52,7 @@ ACT.gBorrar = (el, id) => ask('¿Eliminar el grupo <b>' + gNombre(id) + '</b> y 
 }, 'Eliminar');
 CHG.gCampo = (el, id, campo) => {
   const g = cl(S.grupos[id]); let v = el.value;
-  if (campo === 'nivel' || campo === 'nivelMeta' || campo === 'nivelCompu') v = v === '' ? null : Number(v);
+  if (campo === 'nivel' || campo === 'nivelCompu') v = v === '' ? null : Number(v);
   g[campo] = v; save('grupos', id, g); render();
 };
 CHG.gMat = (el, id, mat) => {
