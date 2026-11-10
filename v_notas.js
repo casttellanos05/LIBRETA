@@ -15,20 +15,20 @@ VIEWS.notas = function () {
   const n = notaSel();
   if (!n) return '<div class="card empty">Primero da de alta tus grupos y alumnos en <b>Grupos</b>.</div>';
   const al = alumnosDe(n.g), crit = critDe(n.m), per = S.cfg.periodos;
-  let h = '<div class="row sp" style="margin-bottom:10px"><div><h2>Calificaciones</h2><div class="muted">Escribe y se guarda solo. Enter baja al siguiente alumno; también puedes pegar una columna desde Excel.</div></div></div>';
+  let h = '<div class="row sp" style="margin-bottom:10px"><div><h2>Evaluaciones</h2><div class="muted">Escribe y se guarda solo. Enter baja al siguiente alumno; también puedes pegar una columna desde Excel. La observación de cada niño se escribe sola según su promedio.</div></div></div>';
   h += '<div class="card"><div class="row"><label class="f">Grupo<select data-chg="nSel|g">' + ordenGrupos().map(g => '<option value="' + g.id + '"' + (g.id === n.g ? ' selected' : '') + '>' + gNombre(g.id) + '</option>').join('') + '</select></label>' +
     '<div class="f">Materia<div class="seg">' + matsDe(n.g).map(m => '<button class="' + (n.m === m ? 'on' : '') + '" data-act="nSet|m|' + m + '">' + MAT_NOMBRE[m] + '</button>').join('') + '</div></div>' +
     '<div class="f">Periodo<div class="seg">' + per.map((p, i) => '<button class="' + (n.p === i + 1 ? 'on' : '') + '" data-act="nSet|p|' + (i + 1) + '">' + esc(p) + '</button>').join('') + '</div></div></div></div>';
   if (!al.length) return h + '<div class="card empty">Este grupo todavía no tiene alumnos.</div>';
   const peso = crit.reduce((s, c) => s + c.peso, 0);
   if (peso !== 100) h += '<div class="note warn" style="margin-bottom:10px">Los porcentajes de los criterios suman ' + peso + ', no 100. El promedio se calcula proporcional; ajústalos en Ajustes.</div>';
-  h += '<div class="card"><div class="row sp" style="margin-bottom:8px"><span class="small muted">En Observación toca 💬 para elegir una frase amable, o deja que la libreta sugiera una para cada niño.</span><button class="btn sm" data-act="obsAuto">Sugerir observaciones tiernas</button></div><div class="scroll"><table class="gridn"><tr><th>Alumno</th>' + crit.map(c => '<th class="n">' + esc(c.nombre) + ' <span class="muted">' + c.peso + '%</span></th>').join('') + '<th class="n">Calif. del periodo</th><th class="n hide-s">Promedio anual</th><th>Observación</th></tr>';
+  h += '<div class="card"><div class="row sp" style="margin-bottom:8px"><span class="small muted">La observación se pone sola según el promedio. Toca 💬 para elegir otra (felicitación, apoyo o atención en clase) o escribe la tuya.</span><button class="btn sm" data-act="obsAuto">Poner observaciones automáticas</button></div><div class="scroll"><table class="gridn"><tr><th>Alumno</th>' + crit.map(c => '<th class="n">' + esc(c.nombre) + ' <span class="muted">' + c.peso + '%</span></th>').join('') + '<th class="n">Calif. del periodo</th><th class="n hide-s">Promedio anual</th><th>Observación</th></tr>';
   h += '<tr><td class="nm muted small">Llenar vacíos con…</td>' + crit.map(c => '<td><div class="row" style="flex-wrap:nowrap;gap:3px"><input class="gi" id="all-' + c.id + '" inputmode="decimal" style="width:52px" placeholder="10"><button class="btn sm" data-act="llenar|' + c.id + '">OK</button></div></td>').join('') + '<td></td><td class="hide-s"></td><td></td></tr>';
   al.forEach((a, r) => {
     const d = calDoc(a.id, n.m), p = (d && d.p && d.p[n.p]) || {}, fin = notaPeriodo(d, n.p), an = notaAnual(d);
     h += '<tr><td class="nm"><span class="muted small">' + a.num + '.</span> ' + esc(a.nombre) + '</td>' + crit.map((c, ci) => '<td><input class="gi' + (num(p[c.id]) && (p[c.id] > 10 || p[c.id] < 0) ? ' bad' : '') + '" inputmode="decimal" autocomplete="off" data-r="' + r + '" data-c="' + ci + '" data-inp="gnota|' + a.id + '|' + c.id + '" value="' + (num(p[c.id]) ? p[c.id] : '') + '"></td>').join('') +
       '<td id="fin-' + a.id + '" class="fin ' + (fin != null && fin < S.cfg.esc.aprob ? 'low' : '') + '">' + fmtNota(fin) + '</td><td id="an-' + a.id + '" class="fin hide-s" style="font-size:15px">' + fmtNota(an) + '</td>' +
-      '<td><div class="row" style="flex-wrap:nowrap;gap:4px"><input class="go" id="obs-' + a.id + '" data-inp="gobs|' + a.id + '" value="' + esc(p.obs || '') + '" placeholder="Opcional"><button class="btn sm" data-act="obsFrases|' + a.id + '" title="Frases">💬</button></div></td></tr>';
+      '<td><div class="row" style="flex-wrap:nowrap;gap:4px"><input class="go" id="obs-' + a.id + '" data-inp="gobs|' + a.id + '" value="' + esc(p.obs || '') + '" placeholder="Se escribe sola"><button class="btn sm" data-act="obsFrases|' + a.id + '" title="Frases">💬</button></div></td></tr>';
   });
   h += '<tr id="avgrow"></tr></table></div>' + promedioPie(n) + '</div>';
   h += boletaPanel(n, al);
@@ -46,6 +46,7 @@ function refrescaFila(aid) {
   const f = $('#fin-' + aid), a = $('#an-' + aid);
   if (f) { f.textContent = fmtNota(fin); f.className = 'fin ' + (fin != null && fin < S.cfg.esc.aprob ? 'low' : ''); }
   if (a) a.textContent = fmtNota(an);
+  const ob = $('#obs-' + aid), pp = d && d.p && d.p[n.p]; if (ob && document.activeElement !== ob) ob.value = (pp && pp.obs) || '';
   const pie = $('#pie'); if (pie) pie.outerHTML = promedioPie(n);
 }
 CHG.nSel = (el, k) => { S.ui.n[k] = el.value; render(); };
@@ -64,6 +65,7 @@ INP.gobs = (el, aid) => {
   const n = S.ui.n, key = aid + '_' + n.m, a = S.alumnos[aid];
   const d = cl(S.calificaciones[key]) || { alumnoId: aid, grupoId: a.grupoId, materia: n.m, p: {} };
   d.p = d.p || {}; d.p[n.p] = d.p[n.p] || {}; if (el.value.trim()) d.p[n.p].obs = el.value; else delete d.p[n.p].obs;
+  d.p[n.p].obsAuto = false;
   save('calificaciones', key, d, 800);
 };
 ACT.llenar = (el, crit) => {
@@ -220,29 +222,37 @@ ACT.bolSolo = async (el, quien) => {
 };
 ACT.bolPrueba = async () => { if (!(await asegurarPDF())) return; descargar('hoja-de-prueba-' + (S.ui.rep2 || 2) + 'trim.pdf', boletasPDF([alumnoSel()], S.ui.rep2 || 2, true)); };
 
-/* Observaciones amables para la boleta */
-function obsGuarda(aid, texto) {
+/* Observaciones: automáticas por promedio, con menú para elegir otras */
+function obsGuarda(aid, texto, auto) {
   const n = S.ui.n, key = aid + '_' + n.m, a = S.alumnos[aid];
   const d = cl(S.calificaciones[key]) || { alumnoId: aid, grupoId: a.grupoId, materia: n.m, p: {} };
-  d.p = d.p || {}; d.p[n.p] = d.p[n.p] || {}; if (texto.trim()) d.p[n.p].obs = texto; else delete d.p[n.p].obs;
+  d.p = d.p || {}; d.p[n.p] = d.p[n.p] || {};
+  if (texto.trim()) d.p[n.p].obs = texto; else delete d.p[n.p].obs;
+  d.p[n.p].obsAuto = auto === true;
   save('calificaciones', key, d);
 }
+const obsActual = aid => { const d = calDoc(aid, S.ui.n.m), p = (d && d.p && d.p[S.ui.n.p]) || {}; return { txt: (p.obs || '').trim(), auto: p.obsAuto === true }; };
 ACT.obsFrases = (el, aid) => {
-  const m = S.ui.n.m, chips = (lst, tipo) => '<div class="chips" style="margin:6px 0 12px">' + lst.map((f, i) => '<button class="chip" data-act="obsPon|' + aid + '|' + tipo + '|' + i + '">' + esc(f) + '</button>').join('') + '</div>';
-  modal('<h3 style="margin:0 0 4px">Frases para ' + esc(S.alumnos[aid].nombre) + '</h3><div class="small muted">Toca una para agregarla. Puedes combinar una felicitación con una sugerencia.</div><h4>Felicitaciones</h4>' + chips(OBS_FELIC[m] || OBS_FELIC.ingles, 'f') + '<h4>Sugerencias cariñosas</h4>' + chips(OBS_SUG[m] || OBS_SUG.ingles, 's'));
+  const m = S.ui.n.m, d = calDoc(aid, m), fin = d ? notaPeriodo(d, S.ui.n.p) : null, M = OBS_MENU[m] || OBS_MENU.ingles;
+  const chips = (lst, gi) => '<div class="chips" style="margin:6px 0 12px">' + lst.map((f, i) => '<button class="chip" data-act="obsPon|' + aid + '|' + gi + '|' + i + '">' + esc(f) + '</button>').join('') + '</div>';
+  modal('<h3 style="margin:0 0 4px">Observaciones para ' + esc(S.alumnos[aid].nombre) + '</h3><div class="small muted">Toca una frase para ponerla. Si ya hay un texto escrito por ti, la frase se agrega al final.</div>' +
+    '<div style="max-height:58vh;overflow:auto;margin-top:8px">' + (fin != null ? '<div class="chips" style="margin:8px 0"><button class="chip on" data-act="obsUsaAuto|' + aid + '">Usar la automática según su promedio (' + fmtNota(fin) + ')</button></div>' : '') +
+    M.map((g, gi) => '<h4>' + g.t + '</h4>' + chips(g.l, gi)).join('') + '</div>');
 };
-ACT.obsPon = (el, aid, tipo, i) => {
-  const m = S.ui.n.m, f = ((tipo === 'f' ? OBS_FELIC : OBS_SUG)[m] || (tipo === 'f' ? OBS_FELIC : OBS_SUG).ingles)[Number(i)];
-  const d = calDoc(aid, m), cur = ((d && d.p && d.p[S.ui.n.p] && d.p[S.ui.n.p].obs) || '').trim();
-  obsGuarda(aid, uneObs(cur, f)); ACT.askno(); render();
+ACT.obsPon = (el, aid, gi, i) => {
+  const m = S.ui.n.m, f = (OBS_MENU[m] || OBS_MENU.ingles)[Number(gi)].l[Number(i)], cur = obsActual(aid);
+  obsGuarda(aid, cur.auto ? f : uneObs(cur.txt, f), false); ACT.askno(); render();
+};
+ACT.obsUsaAuto = (el, aid) => {
+  const n = S.ui.n, key = aid + '_' + n.m, a = S.alumnos[aid], d = cl(S.calificaciones[key]) || { alumnoId: aid, grupoId: a.grupoId, materia: n.m, p: {} };
+  d.p = d.p || {}; d.p[n.p] = d.p[n.p] || {}; aplicaObsAuto(d, aid, n.m, n.p, true); save('calificaciones', key, d); ACT.askno(); render();
 };
 ACT.obsAuto = () => {
-  const n = S.ui.n; let k = 0, hechas = 0;
-  alumnosDe(n.g).forEach((a, i) => {
-    const d = calDoc(a.id, n.m), p = (d && d.p && d.p[n.p]) || {}, fin = notaPeriodo(d, n.p);
-    if (fin == null || (p.obs || '').trim()) return;
-    obsGuarda(a.id, obsSugerida(n.m, fin, i)); hechas++;
+  const n = S.ui.n; let hechas = 0;
+  alumnosDe(n.g).forEach(a => {
+    const key = a.id + '_' + n.m, d = cl(S.calificaciones[key]); if (!d) return; const antes = d.p && d.p[n.p] ? d.p[n.p].obs : null;
+    aplicaObsAuto(d, a.id, n.m, n.p); if (d.p[n.p] && d.p[n.p].obs !== antes) { save('calificaciones', key, d); hechas++; }
   });
-  toast(hechas ? 'Listo: ' + hechas + ' observaciones sugeridas. Léelas y cámbialas si quieres.' : 'No hay niños con calificación y observación vacía', hechas ? 'ok' : '');
+  toast(hechas ? 'Observaciones puestas en ' + hechas + ' alumnos (las que escribiste tú no se tocan).' : 'Todo está al día', hechas ? 'ok' : '');
   render();
 };

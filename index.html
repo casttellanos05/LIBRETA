@@ -220,6 +220,26 @@ body[data-mat="compu"] .seg button.on { background: #6a42c4; color: #fff; }
 body[data-mat="ingles"] .seg button.on { background: #2457d6; color: #fff; }
 .badge.b-ingles { background: #e6ecfc; color: #2457d6; }
 .badge.b-compu { background: #eee8fb; color: #6a42c4; }
+/* Hoy y Semana: bloques pastel por materia */
+.prepg { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 10px 0 14px; }
+.pc { display: flex; gap: 12px; border-radius: 12px; padding: 10px 12px; border: 1px solid; }
+.pc.m-ingles { background: #eef3fd; border-color: #d6e2f8; }
+.pc.m-compu { background: #f3eefb; border-color: #e2d8f4; }
+.pc-h { min-width: 50px; } .pc-h b { display: block; font: 700 18px/1.1 var(--font); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; } .pc-h small { color: var(--muted); font-size: 12px; }
+.pc-g { font-weight: 700; margin-bottom: 2px; } .pc-t { font-size: 13.5px; margin: 2px 0; }
+.matg { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.mcard { border-radius: 12px; padding: 10px 14px; }
+.mcard h4 { margin: 0 0 6px; } .mcard ul { margin: 0 0 0 18px; padding: 0; } .mcard li { margin-bottom: 3px; font-size: 13.5px; }
+.mcard.imp { background: #f2f5fa; border: 1px solid #dde4f0; } .mcard.obj { background: #faf6ec; border: 1px solid #ede3c8; }
+.clsg { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; align-items: start; } .clsg .cls { margin-bottom: 0; }
+.cls.m-ingles:not(.e-cancelada) { background: #f4f7fe; }
+.cls.m-compu:not(.e-cancelada) { background: #f7f3fd; }
+.cel.m-ingles:not(.e-cancelada):not(.e-sinreg) { background: #eef3fd; }
+.cel.m-compu:not(.e-cancelada):not(.e-sinreg) { background: #f3eefb; }
+.cel.m-ingles.e-sinreg { background: #f6f8fd; } .cel.m-compu.e-sinreg { background: #f8f5fd; }
+@media (max-width: 640px) { .tmae th { white-space: normal; letter-spacing: 0; font-size: 10.5px; line-height: 1.2; padding: 6px 4px; } .tmae td { padding: 8px 4px; font-size: 14px; } .tmae td:first-child { width: 34%; } .tmae .badge { font-size: 10.5px; padding: 2px 6px; white-space: normal; } }
+.nw { white-space: nowrap; }
+.badge.fav { background: #eee8fb; color: #6a42c4; }
 </style>
 </head>
 <body>

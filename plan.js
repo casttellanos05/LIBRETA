@@ -105,7 +105,7 @@ function claseHTML(d, abierto) {
 function evalHTML(gid, mat, ev) {
   const crit = critDe(mat);
   return '<div class="note" style="margin-top:8px"><b>Esta clase es de evaluación (' + esc(S.cfg.periodos[ev.periodo - 1]) + ').</b> No avanza el plan: el grupo sigue en la clase ' + (posicion(gid, mat) + 1) + ' después.<ul style="margin:6px 0 0 18px;padding:0">' + crit.map(c => '<li>' + esc(c.nombre) + ' · ' + c.peso + '%</li>').join('') + '</ul>' +
-    (alumnosDe(gid).length ? '<div class="small muted" style="margin-top:6px">Examen escrito: ' + alumnosDe(gid).length + ' copias. Al terminar, captura las calificaciones en Notas.</div>' : '') + '</div>';
+    (alumnosDe(gid).length ? '<div class="small muted" style="margin-top:6px">Examen: ' + alumnosDe(gid).length + ' copias. Al terminar, captura las calificaciones en Evaluaciones.</div>' : '') + '</div>';
 }
 function planHTML(gid, mat, si) {
   if (si.ev) return evalHTML(gid, mat, si.ev);

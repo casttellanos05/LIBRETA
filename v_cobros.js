@@ -19,45 +19,62 @@ function resumenSemana(m) {
   });
   return filas;
 }
-function saldoMaestro(mae) {
+function saldoHasta(mae, fin) { // cobrado − pagado hasta una fecha (positivo = el maestro debe; negativo = a favor)
   const gs = Object.values(S.grupos).filter(g => maestroDe(g.id) === mae).map(g => g.id);
-  const cobrado = Object.values(S.clases).filter(c => esDada(c) && gs.indexOf(gEf(c)) >= 0).reduce((s, c) => s + tarifaDe(c), 0);
-  const pagado = Object.values(S.pagos).filter(p => p.maestro === mae).reduce((s, p) => s + (p.monto || 0), 0);
-  return { cobrado, pagado, saldo: cobrado - pagado };
+  const cobrado = Object.values(S.clases).filter(c => esDada(c) && c.fecha <= fin && gs.indexOf(gEf(c)) >= 0).reduce((s, c) => s + tarifaDe(c), 0);
+  const pagado = Object.values(S.pagos).filter(p => p.maestro === mae && p.fecha <= fin).reduce((s, p) => s + (p.monto || 0), 0);
+  return cobrado - pagado;
 }
+const saldoMaestro = mae => { const sd = saldoHasta(mae, '9999-12-31'); return { saldo: sd }; };
+const saldoTxt = v => v < -0.005 ? '<span class="badge fav">A favor ' + money(-v) + '</span>' : '<b>' + money(v) + '</b>';
 
 VIEWS.cobros = function () {
-  const m = S.ui.cobSem || lunes(hoy()), fin = addD(m, 4), filas = resumenSemana(m), t = S.cfg.tarifa || 0;
+  const m = S.ui.cobSem || lunes(hoy()), fin = addD(m, 4), filas = resumenSemana(m), t = S.cfg.tarifa || 0, maes = maestros();
   const totDadas = filas.reduce((s, f) => s + f.dadas, 0), totMonto = filas.reduce((s, f) => s + f.monto, 0);
   const pagosSem = Object.values(S.pagos).filter(p => p.fecha >= m && p.fecha <= addD(m, 6));
   const recibido = pagosSem.reduce((s, p) => s + (p.monto || 0), 0);
   let h = '<div class="row sp" style="margin-bottom:10px"><div><h2>Cobros</h2><div class="muted">Semana del ' + fmtCorto(m) + ' al ' + fmtCorto(fin) + '</div></div><div class="row"><button class="btn sm" data-act="cobMov|-1">◀</button><button class="btn sm" data-act="cobMov|0">Esta semana</button><button class="btn sm" data-act="cobMov|1">▶</button></div></div>';
   if (!t) h += '<div class="card note warn row sp"><span>Falta el <b>monto por niño</b> (por clase) para calcular los cobros.</span><span class="row"><input id="tarifaIn" inputmode="decimal" placeholder="Ej. 10" style="width:110px"><button class="btn pri sm" data-act="tarifaOk">Guardar</button></span></div>';
-  h += '<div class="card"><div class="row" style="gap:22px"><div class="kpi"><b>' + totDadas + '</b><span>clases impartidas</span></div><div class="kpi"><b>' + money(totMonto) + '</b><span>ganado en la semana</span></div><div class="kpi"><b>' + money(recibido) + '</b><span>recibido esta semana</span></div><div class="kpi"><b>' + money(Object.keys(S.pagos).length || totMonto ? maestros().reduce((s, x) => s + saldoMaestro(x).saldo, 0) : 0) + '</b><span>por cobrar en total</span></div></div>' +
-    '<div class="small muted" style="margin-top:8px">Monto por niño en cada clase: <b>' + money(t) + '</b> (cámbialo en Ajustes). Cada clase se cobra por los niños que pagan en ese grupo (se marca en Grupos). Las clases canceladas no se cobran; las cambiadas se cobran al grupo que las recibió.</div></div>';
+  // 1) registrar un cobro
+  h += '<div class="card"><h3>Registrar un cobro</h3><div class="row"><label class="f">Maestro(a)<select id="pm" data-chg="cobPrev">' + maes.map(x => '<option>' + esc(x) + '</option>').join('') + '</select></label><label class="f">Monto<input id="pmo" inputmode="decimal" style="width:110px" placeholder="0" data-inp="cobPrev"></label><label class="f">Fecha<input type="date" id="pf" value="' + hoy() + '"></label><label class="f grow">Nota<input id="pn" placeholder="Opcional"></label></div>' +
+    '<div class="row sp" style="margin-top:10px"><label class="row small" style="flex-wrap:nowrap"><input type="checkbox" id="padv"> Es un cobro adelantado (clases que todavía no doy)</label><button class="btn pri" data-act="pagoOk">Guardar cobro</button></div>' +
+    '<div id="pprev" class="small muted" style="margin-top:6px"></div>' +
+    '<details style="margin-top:10px"><summary>Cobros recientes</summary>' + (Object.keys(S.pagos).length ? '<div class="scroll"><table>' + Object.values(S.pagos).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.ts || 0) - (a.ts || 0)).slice(0, 15).map(p => '<tr><td>' + fmtCorto(p.fecha) + '</td><td>' + esc(p.maestro) + '</td><td class="n"><b>' + money(p.monto) + '</b></td><td>' + (p.adv ? '<span class="badge fav">Adelanto</span>' : '') + '</td><td class="muted small">' + esc(p.nota || '') + '</td><td><button class="btn sm ghost danger" data-act="pagoDel|' + p.id + '">Quitar</button></td></tr>').join('') + '</table></div>' : '<div class="muted small" style="margin-top:6px">Aún no hay cobros registrados.</div>') + '</details></div>';
+  // 2) por maestro
+  let tA = 0, tS = 0, tT = 0;
+  const filasM = maes.map(mae => {
+    const gs = filas.filter(f => f.maestro === mae), sem = gs.reduce((s, f) => s + f.monto, 0), atr = saldoHasta(mae, addD(m, -1)), tot = saldoHasta(mae, addD(m, 6));
+    const pag = pagosSem.filter(p => p.maestro === mae).reduce((s, p) => s + (p.monto || 0), 0); tA += atr; tS += sem; tT += tot;
+    return '<tr><td><b>' + esc(mae) + '</b><div class="small muted" style="max-width:130px">' + (gs.filter(f => f.dadas).map(f => gNombre(f.gid) + ' (' + f.dadas + ')').join(' · ') || 'Sin clases esta semana') + '</div></td><td class="n nw">' + saldoTxt(atr) + '</td><td class="n nw"><b>' + money(sem) + '</b></td><td class="n"><span class="nw">' + saldoTxt(tot) + '</span>' + (pag ? '<div class="small muted" style="max-width:110px;margin-left:auto;white-space:normal">pagó ' + money(pag) + ' esta semana</div>' : '') + '</td></tr>';
+  });
+  h += '<div class="card"><h3>Por maestro(a)</h3><div class="scroll"><table class="tmae"><tr><th>Maestro(a)</th><th class="n">Pagos atrasados</th><th class="n">Esta semana</th><th class="n">Pago total</th></tr>' + filasM.join('') +
+    '<tr><td><b>Total de la semana</b></td><td></td><td class="n"><b>' + money(tS) + '</b></td><td></td></tr></table></div>' +
+    '<div class="small muted" style="margin-top:8px"><b>Pagos atrasados</b>: lo que quedó pendiente de semanas anteriores. <b>Pago total</b>: atrasados + esta semana − lo que ya pagó. <b>A favor</b>: pagó por adelantado; se va descontando conforme das las clases y llega a $0.</div></div>';
+  // 3) qué cobrar a cada grupo
   h += '<div class="card"><h3>Qué cobrar a cada grupo</h3><div class="scroll"><table><tr><th>Maestro(a)</th><th>Grupo</th><th class="n">Niños que pagan</th><th class="n">Esperadas</th><th class="n">Impartidas</th><th>Se cobra</th><th class="n">Monto</th></tr>' +
     filas.map(f => '<tr><td>' + esc(f.maestro) + '</td><td><b>' + gNombre(f.gid) + '</b></td><td class="n">' + pagan(f.gid) + '</td><td class="n">' + f.esp + '</td><td class="n">' + f.dadas + '</td><td>' + (f.dadas === 0 ? '<span class="badge bad">Ninguna</span>' : f.dadas >= f.esp ? '<span class="badge ok">' + (f.esp === 2 ? 'Las dos' : 'La clase') + '</span>' : '<span class="badge warn">Solo una</span>') + '</td><td class="n"><b>' + money(f.monto) + '</b></td></tr>').join('') +
     '<tr><td colspan="4"><b>Total</b></td><td class="n"><b>' + totDadas + '</b></td><td></td><td class="n"><b>' + money(totMonto) + '</b></td></tr></table></div></div>';
-  // por maestro
-  const maes = maestros();
-  h += '<div class="card"><h3>Por maestro(a)</h3><div class="stack" style="gap:8px">' + maes.map(mae => {
-    const gs = filas.filter(f => f.maestro === mae), tot = gs.reduce((s, f) => s + f.monto, 0), sd = saldoMaestro(mae);
-    return '<div class="row sp" style="border-bottom:1px dashed var(--line);padding-bottom:8px"><div><b>' + esc(mae) + '</b><div class="small muted">' + gs.map(f => gNombre(f.gid) + ' (' + f.dadas + ')').join(' · ') + '</div></div>' +
-      '<div class="row" style="gap:14px"><div class="kpi"><b style="font-size:20px">' + money(tot) + '</b><span>esta semana</span></div><div class="kpi"><b style="font-size:20px;color:' + (sd.saldo > 0 ? 'var(--warn)' : 'var(--ok)') + '">' + money(sd.saldo) + '</b><span>saldo total</span></div><button class="btn sm" data-act="msg|' + esc(mae) + '">Mensaje</button></div></div>';
-  }).join('') + '</div></div>';
-  // pagos
-  h += '<div class="card"><h3>Registrar un pago recibido</h3><div class="row"><label class="f">Maestro(a)<select id="pm">' + maes.map(x => '<option>' + esc(x) + '</option>').join('') + '</select></label><label class="f">Monto<input id="pmo" inputmode="decimal" style="width:110px" placeholder="0"></label><label class="f">Fecha<input type="date" id="pf" value="' + hoy() + '"></label><label class="f grow">Nota<input id="pn" placeholder="Opcional"></label><button class="btn pri" data-act="pagoOk" style="align-self:flex-end">Guardar</button></div>' +
-    '<h4>Pagos recientes</h4>' + (Object.keys(S.pagos).length ? '<div class="scroll"><table>' + Object.values(S.pagos).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.ts || 0) - (a.ts || 0)).slice(0, 15).map(p => '<tr><td>' + fmtCorto(p.fecha) + '</td><td>' + esc(p.maestro) + '</td><td class="n"><b>' + money(p.monto) + '</b></td><td class="muted small">' + esc(p.nota || '') + '</td><td><button class="btn sm ghost danger" data-act="pagoDel|' + p.id + '">Quitar</button></td></tr>').join('') + '</table></div>' : '<div class="muted small">Aún no hay pagos registrados.</div>') + '</div>';
+  // 4) resumen
+  const porCobrar = maes.reduce((s, x) => s + Math.max(0, saldoHasta(x, '9999-12-31')), 0), aFavor = maes.reduce((s, x) => s + Math.max(0, -saldoHasta(x, '9999-12-31')), 0);
+  h += '<div class="card"><h3>Resumen</h3><div class="row" style="gap:22px"><div class="kpi"><b>' + totDadas + '</b><span>clases impartidas</span></div><div class="kpi"><b>' + money(totMonto) + '</b><span>ganado en la semana</span></div><div class="kpi"><b>' + money(recibido) + '</b><span>cobrado esta semana</span></div><div class="kpi"><b>' + money(porCobrar) + '</b><span>por cobrar en total</span></div>' + (aFavor ? '<div class="kpi"><b>' + money(aFavor) + '</b><span>a favor (adelantos)</span></div>' : '') + '</div>' +
+    '<div class="small muted" style="margin-top:8px">Monto por niño en cada clase: <b>' + money(t) + '</b> (cámbialo en Ajustes). Cada clase se cobra por los niños que pagan en ese grupo (se marca en Grupos). Las clases canceladas no se cobran; las cambiadas se cobran al grupo que las recibió.</div></div>';
   return h;
 };
+function cobPrev() {
+  const el = $('#pprev'); if (!el) return; const mae = $('#pm').value, v = parseNota($('#pmo').value);
+  if (v === '' || v === undefined || v <= 0) { el.textContent = ''; return; }
+  const sd = saldoHasta(mae, '9999-12-31') - v;
+  el.innerHTML = 'Después de este cobro, ' + esc(mae) + ' quedará ' + (sd < -0.005 ? '<b>a favor ' + money(-sd) + '</b> (se descuenta al dar sus clases)' : sd > 0.005 ? 'debiendo <b>' + money(sd) + '</b>' : '<b>al corriente ($0)</b>') + '.';
+}
+INP.cobPrev = () => cobPrev(); CHG.cobPrev = () => cobPrev();
 ACT.cobMov = (el, n) => { n = Number(n); S.ui.cobSem = n ? addD(S.ui.cobSem || lunes(hoy()), 7 * n) : lunes(hoy()); render(); };
 ACT.tarifaOk = () => { const v = parseNota($('#tarifaIn').value); if (v === '' || v === undefined || v < 0) { toast('Escribe un monto válido', 'bad'); return; } const c = cl(S.cfg); c.tarifa = v; save('config', 'main', c); render(); };
 ACT.pagoOk = () => {
   const v = parseNota($('#pmo').value); if (v === '' || v === undefined || v <= 0) { toast('Escribe el monto recibido', 'bad'); return; }
   const id = 'p' + Date.now().toString(36);
-  save('pagos', id, { id, maestro: $('#pm').value, monto: v, fecha: $('#pf').value || hoy(), nota: $('#pn').value.trim(), ts: Date.now() }); render();
+  save('pagos', id, { id, maestro: $('#pm').value, monto: v, fecha: $('#pf').value || hoy(), nota: $('#pn').value.trim(), adv: $('#padv').checked, ts: Date.now() }); toast('Cobro guardado', 'ok'); render();
 };
-ACT.pagoDel = (el, id) => ask('¿Quitar este pago?', () => { del('pagos', id); render(); }, 'Quitar');
+ACT.pagoDel = (el, id) => ask('¿Quitar este cobro?', () => { del('pagos', id); render(); }, 'Quitar');
 ACT.msg = (el, mae) => {
   const m = S.ui.cobSem || lunes(hoy()), filas = resumenSemana(m).filter(f => f.maestro === mae), tot = filas.reduce((s, f) => s + f.monto, 0), sd = saldoMaestro(mae);
   const txt = 'Hola ' + mae + ', resumen de Inglés y Computación de la semana del ' + fmtCorto(m) + ' al ' + fmtCorto(addD(m, 4)) + ':\n' +

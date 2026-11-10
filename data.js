@@ -50,40 +50,107 @@ const DESC_NIVEL = {
     10: 'Dominio funcional de herramientas digitales: los alumnos planean y desarrollan proyectos completos con autonomía y responsabilidad digital.'
   }
 };
-/* Observaciones de la boleta: tono cálido, pensado para que las familias las reciban como una invitación y no como un reproche. */
-const OBS_FELIC = {
+/* Observaciones de la boleta: automáticas según el promedio del periodo (tono profesional y cálido). */
+const OBS_BANDA = {
+  ingles: {
+    bajo: [
+      'Necesita reforzar los contenidos de inglés de este periodo. Le recomendamos un repaso diario de unos minutos en casa y acercarse al maestro para resolver sus dudas.',
+      'Su desempeño en inglés requiere mayor atención. Con práctica constante en casa y más concentración en clase podrá mejorar notablemente.',
+      'Es importante reforzar el vocabulario y las estructuras vistas en clase. Con apoyo en casa y disposición, estamos seguros de que avanzará.'
+    ],
+    apoyo: [
+      'Va avanzando en inglés. Con un breve repaso diario en casa y mayor atención en clase podrá alcanzar un mejor desempeño.',
+      'Le recomendamos apoyarle en casa repasando el vocabulario y motivarle a poner más atención durante la clase.',
+      'Tiene buen potencial en inglés; con más constancia en casa y concentración en clase mejorará sus resultados.',
+      'Su esfuerzo es visible, pero necesita reforzar lo aprendido. El apoyo en casa y la atención en clase serán la clave.'
+    ],
+    moderada: [
+      'Buen trabajo en este periodo, ¡felicidades! Para seguir creciendo, anímele a practicar inglés en casa con canciones, juegos o videos.',
+      'Muestra un desempeño satisfactorio en inglés. Platicar en casa sobre lo que aprende en clase le ayudará a afianzar su vocabulario.',
+      'Felicitamos su esfuerzo constante. Motivarle a practicar en casa le ayudará a llegar aún más lejos.',
+      'Buen desempeño y buena actitud en clase. Un pequeño repaso en casa le impulsará a alcanzar la excelencia.'
+    ],
+    buena: [
+      '¡Felicidades! Muestra un muy buen desempeño en inglés y participa con entusiasmo en clase. ¡Que siga así!',
+      'Excelente trabajo en este periodo. Su dedicación y su participación se reflejan en sus resultados.',
+      'Reconocemos su esfuerzo y compromiso: su desempeño en inglés es muy destacado.',
+      'Gran desempeño en la clase de inglés. ¡Felicidades por su constancia y su buena actitud!'
+    ],
+    excelente: [
+      '¡Felicitaciones! Su desempeño en inglés es sobresaliente: destaca por su comprensión, su participación y su gran facilidad para comunicarse.',
+      'Reconocemos con gran orgullo su excelente desempeño: domina los temas con seguridad y es un ejemplo para sus compañeros.',
+      '¡Excelente! Muestra una habilidad extraordinaria en inglés y un compromiso admirable. Lo invitamos a seguir explorando nuevos retos.',
+      'Un desempeño brillante en inglés: aprende con rapidez, participa con confianza y supera las expectativas. ¡Muchas felicidades!'
+    ]
+  },
+  compu: {
+    bajo: [
+      'Necesita reforzar el manejo de los programas vistos en este periodo. Le recomendamos practicar en casa cuando sea posible y acercarse al maestro para resolver sus dudas.',
+      'Su desempeño en computación requiere mayor atención. Con práctica constante y más concentración en clase podrá mejorar notablemente.',
+      'Es importante reforzar el razonamiento lógico y el uso de las herramientas vistas. Con apoyo en casa y disposición, estamos seguros de que avanzará.'
+    ],
+    apoyo: [
+      'Va avanzando en computación. Con un poco más de práctica y mayor atención en clase podrá alcanzar un mejor desempeño.',
+      'Le recomendamos apoyarle en casa repasando lo visto en clase y motivarle a poner más atención durante las actividades.',
+      'Tiene buen potencial en computación; con más constancia y concentración en clase mejorará sus resultados.',
+      'Su esfuerzo es visible, pero necesita reforzar el manejo de los programas. El apoyo en casa y la atención en clase serán la clave.'
+    ],
+    moderada: [
+      'Buen trabajo en este periodo, ¡felicidades! Para seguir creciendo, anímele a platicar en casa sobre lo que aprende y a practicar cuando tenga oportunidad.',
+      'Muestra un desempeño satisfactorio en computación. Pedirle que explique en casa lo que hizo en clase le ayudará a afianzar su aprendizaje.',
+      'Felicitamos su esfuerzo constante. Motivarle a seguir explorando y practicando le ayudará a llegar aún más lejos.',
+      'Buen desempeño y buena actitud en clase. Un poco más de práctica le impulsará a alcanzar la excelencia.'
+    ],
+    buena: [
+      '¡Felicidades! Muestra un muy buen manejo de los programas y un razonamiento lógico destacado. ¡Que siga así!',
+      'Excelente trabajo en este periodo. Su dedicación y su participación se reflejan en sus resultados.',
+      'Reconocemos su esfuerzo y compromiso: su desempeño en computación es muy destacado.',
+      'Gran desempeño en la clase de computación. ¡Felicidades por su constancia y su buena actitud!'
+    ],
+    excelente: [
+      '¡Felicitaciones! Su desempeño en computación es sobresaliente: maneja los programas con seguridad y razona con gran claridad.',
+      'Reconocemos con gran orgullo su excelente desempeño: domina las herramientas con soltura y es un ejemplo para sus compañeros.',
+      '¡Excelente! Muestra una habilidad extraordinaria en computación y un compromiso admirable. Lo invitamos a seguir explorando nuevos retos.',
+      'Un desempeño brillante en computación: aprende con rapidez, resuelve con lógica y supera las expectativas. ¡Muchas felicidades!'
+    ]
+  }
+};
+/* Menú de frases para elegir a mano (tres grupos) */
+const OBS_CONDUCTA = [
+  'Se distrae con facilidad durante la clase. Le invitamos a conversar en casa sobre la importancia de la atención.',
+  'Platica con frecuencia durante la clase, lo que afecta su concentración y la de sus compañeros.',
+  'Necesita seguir las indicaciones del maestro con mayor disposición y respeto.',
+  'No presta atención a las explicaciones, por lo que le cuesta realizar las actividades. Agradecemos su apoyo para motivar mayor atención.',
+  'Requiere trabajar con más orden y disciplina dentro del aula.',
+  'Se le dificulta respetar los turnos y escuchar a sus compañeros; trabajaremos juntos en ello.',
+  'No concluye las actividades en clase; requiere un mayor compromiso con su trabajo.',
+  'Con frecuencia no trae el material solicitado, lo que limita su participación. Agradecemos su apoyo.',
+  'Muestra poco interés en las actividades; le animamos a participar más.',
+  'Necesita mostrar mayor respeto hacia sus compañeros y hacia el maestro.',
+  'Participa poco en clase; le motivamos a atreverse a hablar y a preguntar sus dudas.',
+  'Se le invita a cuidar el equipo y los materiales de trabajo.',
+  'Ha mostrado una actitud de mejora en las últimas clases; seguiremos apoyándole.'
+];
+const OBS_MENU = {
   ingles: [
-    'Participa con entusiasmo y alegría en cada clase de inglés',
-    'Excelente avance en este periodo: ¡felicidades por su esfuerzo!',
-    'Cada clase suma: su progreso en inglés es notable'
+    { t: 'Felicitaciones', l: OBS_BANDA.ingles.buena.concat(OBS_BANDA.ingles.excelente, ['Participa con entusiasmo y alegría en cada clase de inglés.', 'Cada clase suma: su progreso en inglés es notable.', 'Es un gran compañero(a) de equipo y apoya a los demás en clase.']) },
+    { t: 'Apoyo y motivación', l: OBS_BANDA.ingles.moderada.concat(OBS_BANDA.ingles.apoyo, OBS_BANDA.ingles.bajo, ['Le ayudará mucho repasar el vocabulario en casa con juegos o tarjetas.', 'Un repaso breve en casa, de unos 10 minutos, será un gran impulso para seguir avanzando.']) },
+    { t: 'Atención y conducta', l: OBS_CONDUCTA }
   ],
   compu: [
-    'Explora con curiosidad en computación y aprende muy rápido',
-    'Excelente avance en este periodo: ¡felicidades por su esfuerzo!',
-    'Cada clase suma: está desarrollando habilidades que le servirán toda la vida'
+    { t: 'Felicitaciones', l: OBS_BANDA.compu.buena.concat(OBS_BANDA.compu.excelente, ['Explora con curiosidad en computación y aprende muy rápido.', 'Cada clase suma: está desarrollando habilidades que le servirán toda la vida.', 'Es un gran compañero(a) de equipo y apoya a los demás en clase.']) },
+    { t: 'Apoyo y motivación', l: OBS_BANDA.compu.moderada.concat(OBS_BANDA.compu.apoyo, OBS_BANDA.compu.bajo, ['Practicar unos minutos en casa lo que vemos en clase le dará más seguridad.', 'Platicar sobre lo que aprendió en clase le ayudará a recordarlo.']) },
+    { t: 'Atención y conducta', l: OBS_CONDUCTA }
   ]
 };
-const OBS_SUG = {
-  ingles: [
-    'Le ayudará mucho repasar el vocabulario en casa con juegos o tarjetas',
-    'Un repaso breve en casa, de unos 10 minutos, será un gran impulso para seguir avanzando',
-    'Poco a poco se anima más a participar; sigamos motivándole con cariño'
-  ],
-  compu: [
-    'Practicar unos minutos en casa lo que vemos en clase le dará más seguridad',
-    'Platicar sobre lo que aprendió en clase le ayudará a recordarlo',
-    'Poco a poco se anima más a participar; sigamos motivándole con cariño'
-  ]
-};
-const FRASES_OBS = OBS_FELIC.ingles.concat(OBS_SUG.ingles);
-/* Sugerencia automática según la calificación del periodo: siempre abre con algo bonito. */
 const uneObs = (a, b) => { a = String(a || '').trim(); return a ? a + (/[.!?]$/.test(a) ? ' ' : '. ') + b : b; };
-function obsSugerida(mat, nota, i) {
-  const F = OBS_FELIC[mat] || OBS_FELIC.ingles, G = OBS_SUG[mat] || OBS_SUG.ingles, k = i || 0;
+const hashStr = s => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; };
+/* Observación automática: banda según el promedio y variante estable por alumno/periodo */
+function obsAutoTexto(mat, nota, semilla) {
   if (nota == null) return '';
-  if (nota >= 9) return F[k % F.length];
-  if (nota >= 8) return uneObs(F[(k + 3) % F.length], G[k % G.length]);
-  return uneObs(F[(k + 5) % F.length], G[(k + 1) % G.length]);
+  const B = OBS_BANDA[mat] || OBS_BANDA.ingles;
+  const lst = nota < 6 ? B.bajo : nota < 8 ? B.apoyo : nota < 9 ? B.moderada : nota < 9.5 ? B.buena : B.excelente;
+  return lst[hashStr(String(semilla || '')) % lst.length];
 }
 
 const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];

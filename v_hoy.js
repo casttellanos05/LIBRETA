@@ -101,7 +101,7 @@ ACT.marcar = (el, key) => {
   const av = datosAvance(c.grupoId, c.materia);
   const d = Object.assign(claseBase(c), av, { estado: 'impartida', tarifa: S.cfg.tarifa || 0, pagan: pagan(c.grupoId) || null, ts: Date.now() });
   save('clases', key, d);
-  if (av.tipo === 'eval') { cierraEval(c.grupoId, c.materia); toast('Evaluación registrada. Captura las calificaciones en Notas.', 'ok'); }
+  if (av.tipo === 'eval') { cierraEval(c.grupoId, c.materia); toast('Evaluación registrada. Captura las calificaciones en Evaluaciones.', 'ok'); }
   render();
 };
 ACT.irNotas = (el, gid, mat, per) => { S.ui.n = Object.assign(S.ui.n || {}, { g: gid, m: mat, p: Number(per) }); ir('notas'); };
@@ -171,22 +171,22 @@ ACT.diaMan = () => ACT.dia(null, sigHabil(hoy()));
 ACT.diaMas = (el, n) => { let f = S.fecha; f = Number(n) > 0 ? sigHabil(f) : antHabil(f); ACT.dia(null, f); };
 CHG.fechaSel = el => { if (el.value) ACT.dia(null, el.value); };
 
+const RE_IMPRESO = /impres|hoja|tarjeta|flashcard|memorama|cartel|póster|poster|tablero|examen|copia|recort|cuadernill|ficha|lotería|loteria|bingo|worksheet|diploma|etiqueta|imagen|dibujo|mapa|carta|cuadro|tabla|rompecabezas|lámina|lamina|pictograma|sopa de letras|crucigrama/i;
+const matTipo = (k, d) => RE_IMPRESO.test(k + ' ' + (d || '')) ? 'imp' : 'obj';
 function prepHTML(f, items) {
   const pend = items.filter(c => c.estado === 'pendiente'); if (!pend.length) return '';
-  let h = '<div class="card"><h3>Preparar para ' + (f === sigHabil(hoy()) ? 'mañana' : fmtLargo(f)) + '</h3>';
-  const mats = {}, filas = [];
-  pend.forEach(c => {
-    const gid = gEf(c), si = sigClase(gid, c.materia);
-    filas.push('<li><b>' + hhmm(c.ini) + ' ' + gNombre(gid) + '</b> <span class="muted">' + MAT_NOMBRE[c.materia] + '</span>: ' + esc(tituloSig(si)) + '</li>');
-    if (si.ev) { const k = 'Exámenes de ' + MAT_NOMBRE[c.materia] + ' (' + S.cfg.periodos[si.ev.periodo - 1] + ')'; (mats[k] = mats[k] || { g: [], t: '', n: 0 }).g.push(gNombre(gid)); mats[k].n += alumnosDe(gid).length; return; }
-    if (!si.doc) return;
-    const ml = matLineas(si.doc); Object.keys(ml).forEach(k => { const m = mats[k] = mats[k] || { g: [], t: ml[k], n: 0 }; if (m.g.indexOf(gNombre(gid)) < 0) m.g.push(gNombre(gid)); });
+  const imp = {}, obj = {}, orden = pend.slice().sort((a, b) => (a.ini || 'zz').localeCompare(b.ini || 'zz'));
+  const anota = (T, k, t, gn, n) => { const m = T[k] = T[k] || { g: [], t: t || '', n: 0 }; if (m.g.indexOf(gn) < 0) { m.g.push(gn); m.n += n || 0; } if (!m.t && t) m.t = t; };
+  const tarjetas = orden.map(c => {
+    const gid = gEf(c), gn = gNombre(gid), si = sigClase(gid, c.materia), bl = !si.ev && !si.fin ? bloqueDe(c.materia, si.nivel, si.n) : null;
+    if (si.ev) anota(imp, 'Examen de ' + MAT_NOMBRE[c.materia] + ' (' + S.cfg.periodos[si.ev.periodo - 1] + ')', '', gn, alumnosDe(gid).length);
+    else if (si.doc) { const ml = matLineas(si.doc); Object.keys(ml).forEach(k => anota(matTipo(k, ml[k]) === 'imp' ? imp : obj, k, ml[k], gn, 0)); }
+    return '<div class="pc m-' + c.materia + '"><div class="pc-h"><b>' + (c.ini ? hhmm(c.ini) : 'Extra') + '</b>' + (c.fin ? '<small>' + hhmm(c.fin) + '</small>' : '') + '</div><div class="pc-b"><div class="pc-g">' + gn + ' <span class="badge b-' + c.materia + '">' + MAT_NOMBRE[c.materia] + '</span></div><div class="pc-t">' + esc(tituloSig(si)) + '</div><div class="small muted">Nivel ' + si.nivel + ' · ' + esc(nomNivel(c.materia, si.nivel)) + (bl ? ' · bloque ' + bl.i + '/' + bl.de : '') + '</div></div></div>';
   });
-  h += '<h4>Qué toca en cada grupo</h4><ul style="margin:0 0 0 18px;padding:0">' + filas.join('') + '</ul>';
-  const ks = Object.keys(mats);
-  if (ks.length) h += '<h4>Material que necesitas</h4><ul style="margin:0 0 0 18px;padding:0">' + ks.map(k => '<li><b>' + esc(k) + '</b>' + (mats[k].t ? ' · ' + esc(mats[k].t) : '') + (mats[k].n ? ' · ' + mats[k].n + ' copias en total' : '') + ' <span class="muted">(' + mats[k].g.join(', ') + ')</span></li>').join('') + '</ul>';
-  h += '<div class="small muted" style="margin-top:8px">Lista de revisión: ☐ bocina cargada ☐ material impreso y recortado ☐ plumones y cinta ☐ lista de asistencia</div></div>';
-  return h;
+  const lista = T => { const ks = Object.keys(T); return ks.length ? '<ul>' + ks.map(k => '<li><b>' + esc(k) + '</b>' + (T[k].t ? ' · ' + esc(T[k].t) : '') + (T[k].n ? ' · ' + T[k].n + ' copias en total' : '') + ' <span class="muted">(' + T[k].g.join(', ') + ')</span></li>').join('') + '</ul>' : '<div class="small muted">Nada especial.</div>'; };
+  return '<div class="card"><h3>Preparar para ' + (f === sigHabil(hoy()) ? 'mañana' : fmtLargo(f)) + '</h3><div class="prepg">' + tarjetas.join('') + '</div>' +
+    '<div class="matg"><div class="mcard imp"><h4>Material impreso</h4>' + lista(imp) + '</div><div class="mcard obj"><h4>Instrumentos y objetos</h4>' + lista(obj) + '</div></div>' +
+    '<div class="small muted" style="margin-top:10px">Antes de salir: bocina cargada · material impreso y recortado · plumones y cinta</div></div>';
 }
 
 VIEWS.hoy = function () {
@@ -217,7 +217,7 @@ VIEWS.hoy = function () {
     if (S.ui.extra) h += extraFormHTML();
   }
   if (!items.length) h += '<div class="card empty">No hay clases en tu horario para este día.</div>';
-  h += items.map(c => claseCard(c, f)).join('');
+  if (items.length) h += '<h3 style="margin:14px 0 8px">Clases del día</h3><div class="clsg">' + items.map(c => claseCard(c, f)).join('') + '</div>';
   if (f <= t && items.some(c => esDada(c))) h += '<div class="note small">Tip: la bitácora se guarda sola. Si en un grupo toca repetir la sesión, márcalo y la siguiente clase no avanzará.</div>';
   return h;
 };
@@ -251,9 +251,9 @@ VIEWS.semana = function () {
         if (!recDone && !c.hon && (c.ini || '') >= '11:00') { h += '<div class="rec">Recreo</div>'; recDone = true; }
         if (c.hon) { h += '<div class="cel hon"><b>Honores</b><small>8:00 – 8:50</small></div>'; return; }
         const e = c.estado, past = f < t, sin = e === 'pendiente' && past;
-        h += '<div class="cel e-' + (sin ? 'sinreg' : e) + (sel === c.key && !c.cont ? ' sel' : '') + (c.cont ? ' cont' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap;gap:4px"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: '✕', cambiada: '⇄', pendiente: sin ? '!' : '○' }[e]) + '</span></div><span class="muted">' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cont ? ' (2.ª parte)' : '') + '</span><small>' + hhmm(c.ini) + ' – ' + hhmm(c.fin) + (e === 'cambiada' ? ' · a ' + gNombre(c.grupoReal) : '') + '</small></div>';
+        h += '<div class="cel m-' + c.materia + ' e-' + (sin ? 'sinreg' : e) + (sel === c.key && !c.cont ? ' sel' : '') + (c.cont ? ' cont' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap;gap:4px"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: '✕', cambiada: '⇄', pendiente: sin ? '!' : '○' }[e]) + '</span></div><span class="muted">' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cont ? ' (2.ª parte)' : '') + '</span><small>' + hhmm(c.ini) + ' – ' + hhmm(c.fin) + (e === 'cambiada' ? ' · a ' + gNombre(c.grupoReal) : '') + '</small></div>';
       });
-      extras.forEach(c => { h += '<div class="cel e-' + c.estado + (sel === c.key ? ' sel' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: '✕', cambiada: '⇄', pendiente: '○' }[c.estado]) + '</span></div><span class="muted">Extra · ' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.repone ? ' (reposición)' : '') + '</span><small>' + (c.ini ? hhmm(c.ini) : 'sin hora') + '</small></div>'; });
+      extras.forEach(c => { h += '<div class="cel m-' + c.materia + ' e-' + c.estado + (sel === c.key ? ' sel' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: '✕', cambiada: '⇄', pendiente: '○' }[c.estado]) + '</span></div><span class="muted">Extra · ' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.repone ? ' (reposición)' : '') + '</span><small>' + (c.ini ? hhmm(c.ini) : 'sin hora') + '</small></div>'; });
       if (!cells.length && !extras.length) h += '<div class="small muted">Sin clases</div>';
       h += '</div>';
     }

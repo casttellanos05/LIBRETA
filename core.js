@@ -161,7 +161,7 @@ document.addEventListener('focusout', () => { if (pendingRender) { pendingRender
 function sinDb() {
   return '<div class="card note warn"><b>Esta página necesita abrirse desde Claude</b> para poder guardar tus datos. Ábrela desde el enlace de la libreta en tu cuenta.</div>';
 }
-const TABS = [['hoy', 'Hoy'], ['semana', 'Semana'], ['notas', 'Notas'], ['cobros', 'Cobros'], ['grupos', 'Grupos'], ['avance', 'Avance'], ['temario', 'Plan'], ['ajustes', 'Ajustes'], ['mas', 'Más']];
+const TABS = [['hoy', 'Hoy'], ['semana', 'Semana'], ['notas', 'Evaluaciones'], ['cobros', 'Cobros'], ['grupos', 'Grupos'], ['avance', 'Avance'], ['temario', 'Plan'], ['ajustes', 'Ajustes'], ['mas', 'Más']];
 const ICON = {
   hoy: '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>', semana: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   notas: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>', cobros: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
@@ -270,11 +270,21 @@ function notaAnual(doc) {
   return v.length ? redond(v.reduce((a, b) => a + b, 0) / v.length) : null;
 }
 const calDoc = (aid, mat) => S.calificaciones[aid + '_' + mat];
+/* Observación automática por promedio; no pisa lo que el maestro escribió o eligió a mano */
+function aplicaObsAuto(d, aid, mat, per, forzar) {
+  const p = d.p[per]; if (!p) return;
+  const manual = p.obsAuto === false || ((p.obs || '').trim() && p.obsAuto !== true);
+  if (manual && !forzar) return;
+  const fin = notaPeriodo(d, per);
+  if (fin == null) { if (p.obsAuto === true) { delete p.obs; delete p.obsAuto; } return; }
+  p.obs = obsAutoTexto(mat, fin, aid + '|' + per + '|' + mat); p.obsAuto = true;
+}
 function setCrit(aid, mat, per, crit, val) {
   const a = S.alumnos[aid]; if (!a) return;
   const key = aid + '_' + mat, d = cl(S.calificaciones[key]) || { alumnoId: aid, grupoId: a.grupoId, materia: mat, p: {} };
   d.p = d.p || {}; d.p[per] = d.p[per] || {};
   if (val == null || val === '') delete d.p[per][crit]; else d.p[per][crit] = val;
+  aplicaObsAuto(d, aid, mat, per);
   save('calificaciones', key, d, 700); markMetricas();
 }
 let mT = null;
