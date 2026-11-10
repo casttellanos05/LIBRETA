@@ -41,9 +41,9 @@ ACT.horAdd = () => {
 
 /* ---------- Respaldo xlsx ---------- */
 ACT.respaldo = () => {
-  if (typeof XLSX === 'undefined') { toast('No cargó el lector de Excel; revisa tu internet', 'bad'); return; }
+  if (typeof XLSX === 'undefined') { toast('No se pudo abrir el lector de Excel; vuelve a abrir la app con internet una vez', 'bad'); return; }
   const wb = XLSX.utils.book_new(), add = (n, rows) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ vacio: '' }]), n);
-  add('Grupos', ordenGrupos().map(g => ({ Grupo: g.id, Grado: g.grado, Letra: g.letra, Maestro_titular: g.maestro || '', Nivel_ingles: g.nivel, Meta_nivel: g.nivelMeta || '', Materias: matsDe(g.id).map(m => MAT_NOMBRE[m]).join(' y '), Ajuste_sesion: (g.ajuste && g.ajuste.ingles) || 0, Sesion_actual: posicion(g.id) })));
+  add('Grupos', ordenGrupos().map(g => ({ Grupo: g.id, Grado: g.grado, Letra: g.letra, Maestro_titular: g.maestro || '', Nivel_ingles: g.nivel, Nivel_computacion: nivelDe(g.id, 'compu'), Meta_nivel: g.nivelMeta || '', Materias: matsDe(g.id).map(m => MAT_NOMBRE[m]).join(' y '), Clase_ingles: posicion(g.id, 'ingles') + 1, Clase_computacion: matsDe(g.id).indexOf('compu') >= 0 ? posicion(g.id, 'compu') + 1 : '', Ajuste_ingles: (g.ajuste && g.ajuste.ingles) || 0, Ajuste_computacion: (g.ajuste && g.ajuste.compu) || 0 })));
   add('Alumnos', Object.values(S.alumnos).sort((a, b) => a.grupoId.localeCompare(b.grupoId) || a.num - b.num).map(a => ({ Grupo: a.grupoId, Num: a.num, Nombre: a.nombre, Paga: a.paga === false ? 'no' : 'sí', Id: a.id })));
   const cal = [];
   Object.values(S.calificaciones).forEach(d => {
@@ -55,7 +55,7 @@ ACT.respaldo = () => {
     });
   });
   add('Calificaciones', cal.sort((a, b) => a.Grupo.localeCompare(b.Grupo) || a.Num - b.Num));
-  add('Clases', Object.values(S.clases).sort(cmpClase).map(c => ({ Fecha: c.fecha, Hora: c.ini || '', Grupo: c.grupoId, Materia: MAT_NOMBRE[c.materia], Estado: ESTADO_TXT[c.estado] || c.estado, Grupo_real: c.grupoReal || '', Motivo: c.motivo || '', Sesion: num(c.sesion) ? c.sesion : '', Ninos_que_pagan: esDada(c) ? (c.pagan != null ? c.pagan : pagan(gEf(c))) : '', Monto: esDada(c) ? tarifaDe(c) : '' })));
+  add('Clases', Object.values(S.clases).sort(cmpClase).map(c => ({ Fecha: c.fecha, Hora: c.ini || '', Grupo: c.grupoId, Materia: MAT_NOMBRE[c.materia], Estado: ESTADO_TXT[c.estado] || c.estado, Grupo_real: c.grupoReal || '', Motivo: c.motivo || '', Clase_del_plan: num(c.claseN) ? c.claseN : '', Tipo: c.tipo === 'eval' ? 'evaluación' : '', Ninos_que_pagan: esDada(c) ? (c.pagan != null ? c.pagan : pagan(gEf(c))) : '', Monto: esDada(c) ? tarifaDe(c) : '' })));
   add('Bitacora', Object.values(S.bitacora).sort((a, b) => a.fecha.localeCompare(b.fecha)).map(b => ({ Fecha: b.fecha, Grupo: b.grupoId, Materia: MAT_NOMBRE[b.materia], Animo: b.animo || '', Participacion: b.part || '', Plan: b.plan || '', Repetir: b.repetir ? 'sí' : '', Etiquetas: (b.tags || []).join(', '), Nota: b.nota || '' })));
   add('Pagos', Object.values(S.pagos).sort((a, b) => a.fecha.localeCompare(b.fecha)).map(p => ({ Fecha: p.fecha, Maestro: p.maestro, Monto: p.monto, Nota: p.nota || '' })));
   add('Cambios', Object.values(S.cambios).map(c => ({ Fecha: c.fecha, Tipo: c.tipo, Grupo: c.grupoId || '', Titulo: c.titulo, Detalle: c.detalle || '', Estado: c.estado })));

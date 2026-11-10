@@ -19,12 +19,17 @@ VIEWS.grupos = function () {
   const g = S.grupos[sel], al = alumnosDe(sel);
   h += '<div class="card"><div class="row sp"><h3 style="margin:0">' + gNombre(sel) + '</h3><button class="btn sm danger" data-act="gBorrar|' + sel + '">Eliminar grupo</button></div>' +
     '<div class="row" style="margin-top:10px"><label class="f">Maestro(a) titular<input value="' + esc(g.maestro || '') + '" data-chg="gCampo|' + sel + '|maestro"></label>' +
-    '<label class="f">Nivel de inglés<select data-chg="gCampo|' + sel + '|nivel">' + [1, 2, 3, 4, 5].map(n => '<option value="' + n + '"' + (g.nivel === n ? ' selected' : '') + '>' + n + ' · ' + NIVELES[n] + '</option>').join('') + '</select></label>' +
-    '<label class="f">Meta de nivel<select data-chg="gCampo|' + sel + '|nivelMeta"><option value="">—</option>' + [1, 2, 3, 4, 5].map(n => '<option value="' + n + '"' + (g.nivelMeta === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
+    '<label class="f">Nivel de inglés<select data-chg="gCampo|' + sel + '|nivel">' + NIVS.map(n => '<option value="' + n + '"' + (g.nivel === n ? ' selected' : '') + '>' + n + ' · ' + esc(nomNivel('ingles', n)) + '</option>').join('') + '</select></label>' +
+    (matsDe(sel).indexOf('compu') >= 0 ? '<label class="f">Nivel de computación<select data-chg="gCampo|' + sel + '|nivelCompu">' + NIVS.map(n => '<option value="' + n + '"' + (nivelDe(sel, 'compu') === n ? ' selected' : '') + '>' + n + ' · ' + esc(nomNivel('compu', n)) + '</option>').join('') + '</select></label>' : '') +
+    '<label class="f">Meta de nivel (inglés)<select data-chg="gCampo|' + sel + '|nivelMeta"><option value="">—</option>' + NIVS.map(n => '<option value="' + n + '"' + (g.nivelMeta === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
     '<div class="f">Materias<div class="row"><label class="row small"><input type="checkbox" data-chg="gMat|' + sel + '|ingles"' + (matsDe(sel).indexOf('ingles') >= 0 ? ' checked' : '') + '> Inglés</label><label class="row small"><input type="checkbox" data-chg="gMat|' + sel + '|compu"' + (matsDe(sel).indexOf('compu') >= 0 ? ' checked' : '') + '> Computación</label></div></div></div></div>';
   h += '<div class="card"><div class="row sp"><h3 style="margin:0">Lista de alumnos (' + al.length + ')</h3><span class="muted small">' + pagan(sel) + ' pagan · ' + (al.length - pagan(sel)) + ' sin cobro</span></div>';
   h += '<div class="row" style="margin:10px 0"><input id="nuevoAlu" placeholder="Nombre completo del alumno" class="grow" data-enter="aluAdd"><button class="btn pri" data-act="aluAdd">Agregar</button></div>';
-  if (al.length) h += '<div class="scroll"><table><tr><th>#</th><th>Nombre completo</th><th style="text-align:center">¿Paga?</th><th></th></tr>' + al.map(a => '<tr><td>' + a.num + '</td><td><input style="width:100%;min-width:200px" value="' + esc(a.nombre) + '" data-chg="aluNombre|' + a.id + '"></td><td style="text-align:center"><input type="checkbox" style="min-height:0;width:20px;height:20px" data-chg="aluPaga|' + a.id + '"' + (a.paga === false ? '' : ' checked') + '></td><td><button class="btn sm ghost danger" data-act="aluDel|' + a.id + '">Quitar</button></td></tr>').join('') + '</table></div>';
+  if (al.length) h += '<div class="scroll"><table><tr><th>#</th><th>Nombre completo</th><th style="text-align:center">¿Paga?</th><th></th></tr>' + al.map(a => {
+    const ab = (S.ui.aluAb || {})[a.id];
+    return '<tr><td>' + a.num + '</td><td><input style="width:100%;min-width:200px" value="' + esc(a.nombre) + '" data-chg="aluNombre|' + a.id + '"></td><td style="text-align:center"><input type="checkbox" style="min-height:0;width:20px;height:20px" data-chg="aluPaga|' + a.id + '"' + (a.paga === false ? '' : ' checked') + '></td><td style="white-space:nowrap"><button class="btn sm' + (ab ? ' pri' : '') + '" data-act="aluAbre|' + a.id + '">Métricas ' + (ab ? '▾' : '▸') + '</button> <button class="btn sm ghost danger" data-act="aluDel|' + a.id + '">Quitar</button></td></tr>' +
+      (ab ? '<tr><td></td><td colspan="3" style="padding-bottom:14px">' + aluMetricasHTML(a) + '</td></tr>' : '');
+  }).join('') + '</table></div>';
   else h += '<div class="empty">Este grupo no tiene alumnos. Agrégalos arriba, pega una lista o importa el Excel.</div>';
   h += '<details><summary>Pegar una lista (un nombre por renglón)</summary><textarea id="pegaLista" rows="5" placeholder="Pega aquí los nombres desde Excel o Word"></textarea><div style="margin-top:6px"><button class="btn" data-act="pegaOk">Agregar a ' + gNombre(sel) + '</button></div></details></div>';
   return h;
@@ -48,7 +53,7 @@ ACT.gBorrar = (el, id) => ask('¿Eliminar el grupo <b>' + gNombre(id) + '</b> y 
 }, 'Eliminar');
 CHG.gCampo = (el, id, campo) => {
   const g = cl(S.grupos[id]); let v = el.value;
-  if (campo === 'nivel' || campo === 'nivelMeta') v = v === '' ? null : Number(v);
+  if (campo === 'nivel' || campo === 'nivelMeta' || campo === 'nivelCompu') v = v === '' ? null : Number(v);
   g[campo] = v; save('grupos', id, g); render();
 };
 CHG.gMat = (el, id, mat) => {
@@ -78,6 +83,7 @@ ACT.pegaOk = () => {
   const r = agregaAlumnos(S.ui.gsel, t); if (!r.items.length) { toast('No hay nombres nuevos', 'bad'); return; }
   putMany('alumnos', r.items, 'Alumnos'); if (r.dup) toast(r.dup + ' repetidos omitidos');
 };
+ACT.aluAbre = (el, id) => { S.ui.aluAb = S.ui.aluAb || {}; S.ui.aluAb[id] = !S.ui.aluAb[id]; render(); };
 CHG.aluPaga = (el, id) => { const a = cl(S.alumnos[id]); a.paga = el.checked; save('alumnos', id, a); render(); };
 CHG.aluNombre = (el, id) => { const a = cl(S.alumnos[id]); a.nombre = titulo(el.value); save('alumnos', id, a); };
 ACT.aluDel = (el, id) => ask('¿Quitar a <b>' + esc(S.alumnos[id].nombre) + '</b>? Se borran también sus calificaciones.', () => {
@@ -96,38 +102,97 @@ ACT.plantilla = () => {
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(PLANTILLA), 'Alumnos');
   descargar('plantilla-alumnos.xlsx', XLSX.write(wb, { type: 'array', bookType: 'xlsx' }));
 };
-function parseGrupo(txt) { const m = String(txt || '').match(/(\d)\s*[°º.o]?\s*([A-Za-z])\b/); return m ? { grado: Number(m[1]), letra: m[2].toUpperCase() } : null; }
+const GRADO_PAL = { primero: 1, primer: 1, segundo: 2, tercero: 3, tercer: 3, cuarto: 4, quinto: 5, sexto: 6 };
+function parseGrupo(txt) {
+  let t = normTxt(txt).replace(/[“”"'`´]/g, ' ');
+  Object.keys(GRADO_PAL).forEach(k => { t = t.replace(new RegExp('\\b' + k + '\\b', 'g'), String(GRADO_PAL[k])); });
+  t = t.replace(/\b(grado|grupo|gpo|grp|seccion)\b\.?/g, ' ').replace(/[°º\.\-_:,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const m = t.match(/^([1-6])\s*(?:ro|do|er|to|mo|vo|o|a)?\s*([a-h])$/) || t.match(/^([1-6])([a-h])$/);
+  return m ? { grado: Number(m[1]), letra: m[2].toUpperCase() } : null;
+}
+async function asegurarXLSX() {
+  if (typeof XLSX !== 'undefined') return true;
+  for (const src of ['lib/xlsx.full.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js']) {
+    try {
+      await new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+      if (typeof XLSX !== 'undefined') return true;
+    } catch (e) { }
+  }
+  return false;
+}
+function leerArchivo(f) {
+  return new Promise((ok, no) => {
+    const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = () => no(fr.error || new Error('lectura'));
+    try { fr.readAsArrayBuffer(f); } catch (e) { no(e); }
+  });
+}
+/* Lee un libro de Excel con casi cualquier acomodo: una hoja con columnas, una hoja por grupo, o bloques con título "1° A" */
+function leeLibro(wb) {
+  const rows = [], avisos = [], hojas = [];
+  const UI_G = S.ui.gsel && S.grupos[S.ui.gsel] ? { grado: S.grupos[S.ui.gsel].grado, letra: S.grupos[S.ui.gsel].letra } : null;
+  wb.SheetNames.forEach(sn => {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '', raw: false, blankrows: false }).map(r => r.map(c => String(c == null ? '' : c).trim()));
+    if (!aoa.length) return;
+    // fila de encabezados: la primera (en las 30 primeras) que tenga columna de nombre o apellido
+    let hi = -1, cG = -1, cL = -1, cGL = -1, cN = -1, cAp = [], cNom = -1;
+    for (let i = 0; i < Math.min(30, aoa.length) && hi < 0; i++) {
+      const hd = aoa[i].map(normTxt);
+      const iN = hd.findIndex(h => /^(nombre completo|nombre del alumno|nombre de alumno|alumno|alumna|alumnos|nombre y apellidos?|estudiante)/.test(h));
+      const iNom = hd.findIndex(h => /^(nombres?|nombre\(s\)|nombre s)$/.test(h));
+      const iAp = hd.map((h, k) => (/apellido/.test(h) ? k : -1)).filter(k => k >= 0);
+      if (iN >= 0 || iNom >= 0 || iAp.length) {
+        hi = i; cN = iN; cNom = iNom; cAp = iAp;
+        cGL = hd.findIndex(h => /(grado.*grupo|grupo.*grado)/.test(h));
+        cG = hd.findIndex(h => /^(grado|grd|gdo)$/.test(h) || /^grado/.test(h) && cGL < 0);
+        cL = hd.findIndex((h, k) => k !== cGL && /^(grupo|grp|gpo|seccion|letra)/.test(h));
+      }
+    }
+    const data = hi >= 0 ? aoa.slice(hi + 1) : aoa;
+    const gHoja = parseGrupo(sn);
+    let ctx = null, cuenta = 0, desc = 0;
+    const nombreDe = r => {
+      if (hi < 0) { // sin encabezado: la celda de texto más larga que no sea solo un número
+        const c = r.filter(x => x && !/^\d+$/.test(x) && !parseGrupo(x)).sort((a, b) => b.length - a.length)[0]; return titulo(c || '');
+      }
+      if (cN >= 0 && r[cN]) return titulo(r[cN]);
+      const partes = cAp.map(k => r[k]).filter(Boolean).concat(cNom >= 0 && r[cNom] ? [r[cNom]] : []);
+      return titulo(partes.join(' '));
+    };
+    data.forEach(r => {
+      if (!r.some(Boolean)) return;
+      const llenas = r.filter(Boolean);
+      // fila de título de bloque: "1° A"
+      if (llenas.length <= 2 && llenas.some(x => parseGrupo(x)) && !llenas.some(x => /[a-z]{4,}/i.test(x) && !parseGrupo(x))) { ctx = parseGrupo(llenas.find(x => parseGrupo(x))); return; }
+      let g = null;
+      if (cGL >= 0) g = parseGrupo(r[cGL]);
+      if (!g && cG >= 0 && cL >= 0 && r[cG] && r[cL]) { const gr = parseInt(r[cG], 10) || (GRADO_PAL[normTxt(r[cG])] || 0); g = { grado: gr, letra: String(r[cL]).trim().toUpperCase().slice(0, 2) }; }
+      if (!g && cL >= 0 && r[cL]) { g = parseGrupo(r[cL]); if (!g && /^[A-Za-z]$/.test(r[cL])) { const gr = (cG >= 0 && (parseInt(r[cG], 10) || GRADO_PAL[normTxt(r[cG])])) || (ctx && ctx.grado) || (gHoja && gHoja.grado) || (UI_G && UI_G.grado) || 0; if (gr) g = { grado: gr, letra: r[cL].toUpperCase() }; } }
+      if (!g && cG >= 0 && r[cG]) g = parseGrupo(r[cG]);
+      if (!g) g = ctx || gHoja || UI_G;
+      const nom = nombreDe(r);
+      if (!nom || /^(total|nombre|alumno|no\.?|num|numero|n°)$/i.test(normTxt(nom)) || /^\d+$/.test(nom)) return;
+      if (!g || !(g.grado >= 1 && g.grado <= 6) || !g.letra) { avisos.push(nom); return; }
+      rows.push({ gid: g.grado + g.letra, grado: g.grado, letra: g.letra, nombre: nom.replace(/^\d+[\.\)\-\s]+/, '') }); cuenta++;
+    });
+    hojas.push(sn + ': ' + (hi >= 0 ? 'encabezados en el renglón ' + (hi + 1) : 'sin encabezados') + ', ' + cuenta + ' alumnos');
+  });
+  return { rows, avisos, hojas };
+}
 CHG.impArchivo = async el => {
   const f = el.files && el.files[0]; if (!f) return;
   try {
-    if (typeof XLSX === 'undefined') { toast('No cargó el lector de Excel; revisa tu internet', 'bad'); return; }
-    const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
-    const rows = [], avisos = [];
-    wb.SheetNames.forEach(sn => {
-      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: '' }).filter(r => r.some(c => String(c).trim()));
-      if (!aoa.length) return;
-      const head = aoa[0].map(normTxt);
-      const ix = re => head.findIndex(h => re.test(h));
-      let cG = ix(/^grado/), cL = ix(/^grupo|^seccion|^letra/), cN = ix(/^nombre completo|^alumno|^nombre/), cA = ix(/apellido/);
-      const tieneHead = cN >= 0 || cA >= 0 || cG >= 0;
-      let data = tieneHead ? aoa.slice(1) : aoa; if (!tieneHead) { cN = 0; }
-      if (cA >= 0 && cN >= 0 && /apellido/.test(head[cN])) cN = head.findIndex((h, i) => /^nombre/.test(h) && i !== cA);
-      const gSheet = parseGrupo(sn);
-      data.forEach(r => {
-        let g = null;
-        if (cG >= 0 && cL >= 0 && String(r[cG]).trim()) g = { grado: parseInt(r[cG], 10), letra: String(r[cL]).trim().toUpperCase().slice(0, 2) };
-        else if (cL >= 0) g = parseGrupo(r[cL]);
-        if (!g && cG >= 0) g = parseGrupo(r[cG]);
-        if (!g) g = gSheet || (S.ui.gsel && S.grupos[S.ui.gsel] ? { grado: S.grupos[S.ui.gsel].grado, letra: S.grupos[S.ui.gsel].letra } : null);
-        let nom = '';
-        if (cA >= 0) nom = titulo(String(r[cA]) + ' ' + (cN >= 0 ? r[cN] : '')); else nom = titulo(r[cN >= 0 ? cN : 0]);
-        if (!nom || !g || !(g.grado >= 1 && g.grado <= 6) || !g.letra) { if (nom) avisos.push(nom); return; }
-        rows.push({ gid: g.grado + g.letra, grado: g.grado, letra: g.letra, nombre: nom });
-      });
-    });
-    S.ui.imp = { rows, avisos, archivo: f.name };
-    render();
-  } catch (e) { console.error(e); toast('No pude leer ese archivo: ' + e.message, 'bad'); }
+    if (!(await asegurarXLSX())) { toast('No se pudo abrir el lector de Excel. Cierra y abre la app una vez con internet para actualizarla; mientras tanto usa “Pegar una lista”.', 'bad'); el.value = ''; return; }
+    let buf;
+    try { buf = await leerArchivo(f); }
+    catch (e) { toast('El teléfono no pudo leer el archivo. Si está en Google Drive, descárgalo primero al dispositivo (Drive → ⋮ → Descargar) y elígelo desde Descargas.', 'bad'); el.value = ''; return; }
+    if (!buf || !buf.byteLength) { toast('El archivo está vacío (0 bytes). Si está en la nube, descárgalo primero al dispositivo.', 'bad'); el.value = ''; return; }
+    let wb;
+    try { wb = XLSX.read(new Uint8Array(buf), { type: 'array' }); }
+    catch (e) { toast('No pude abrir ese archivo como Excel. Guárdalo como .xlsx (Archivo → Guardar como) e inténtalo de nuevo.', 'bad'); el.value = ''; return; }
+    const r = leeLibro(wb);
+    S.ui.imp = { rows: r.rows, avisos: r.avisos, hojas: r.hojas, archivo: f.name };
+    el.value = ''; render();
+  } catch (e) { console.error(e); toast('No pude leer ese archivo: ' + (e && e.message ? e.message : 'error desconocido'), 'bad'); }
 };
 function impPreview() {
   const I = S.ui.imp, por = {};
@@ -138,9 +203,9 @@ function impPreview() {
     const nuevo = !S.grupos[id], r = agregaAlumnos(id, por[id].map(x => x.nombre)); total += r.items.length; dup += r.dup;
     return '<tr><td><b>' + id + '</b></td><td>' + (nuevo ? '<span class="badge acc">grupo nuevo</span>' : '') + '</td><td class="n">' + r.items.length + ' nuevos</td><td class="n muted">' + r.dup + ' ya existían</td></tr>';
   }).join('');
-  return '<div class="card"><h3>Vista previa: ' + esc(I.archivo) + '</h3>' + (ids.length ? '<div class="scroll"><table>' + filas + '</table></div>' : '<p class="muted">No encontré alumnos. Revisa que las columnas se llamen Grado, Grupo y Nombre.</p>') +
+  return '<div class="card"><h3>Vista previa: ' + esc(I.archivo) + '</h3>' + (ids.length ? '<div class="scroll"><table>' + filas + '</table></div>' : '<p class="muted">No encontré alumnos. Revisa que haya una columna de nombres (Nombre, Alumno, o Apellidos y Nombre) y que el grupo venga en una columna, en el nombre de la hoja (1A) o en un título (1° A).</p>') +
     (I.avisos.length ? '<div class="note warn" style="margin-top:8px">' + I.avisos.length + ' renglones sin grupo reconocido (se omiten): ' + esc(I.avisos.slice(0, 4).join(', ')) + (I.avisos.length > 4 ? '…' : '') + '</div>' : '') +
-    '<div class="row" style="margin-top:10px"><button class="btn pri" data-act="impOk"' + (total ? '' : ' disabled') + '>Importar ' + total + ' alumnos</button><button class="btn ghost" data-act="impCerrar">Cancelar</button></div></div>';
+    (I.hojas && I.hojas.length ? '<details style="margin-top:8px"><summary>Cómo leí el archivo</summary><div class="small muted">' + I.hojas.map(esc).join('<br>') + '</div></details>' : '') + '<div class="row" style="margin-top:10px"><button class="btn pri" data-act="impOk"' + (total ? '' : ' disabled') + '>Importar ' + total + ' alumnos</button><button class="btn ghost" data-act="impCerrar">Cancelar</button></div></div>';
 }
 ACT.impOk = () => {
   const I = S.ui.imp, por = {}; I.rows.forEach(r => { (por[r.gid] = por[r.gid] || []).push(r); });

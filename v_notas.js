@@ -22,15 +22,15 @@ VIEWS.notas = function () {
   if (!al.length) return h + '<div class="card empty">Este grupo todavía no tiene alumnos.</div>';
   const peso = crit.reduce((s, c) => s + c.peso, 0);
   if (peso !== 100) h += '<div class="note warn" style="margin-bottom:10px">Los porcentajes de los criterios suman ' + peso + ', no 100. El promedio se calcula proporcional; ajústalos en Ajustes.</div>';
-  h += '<div class="card"><div class="scroll"><table class="gridn"><tr><th>Alumno</th>' + crit.map(c => '<th class="n">' + esc(c.nombre) + ' <span class="muted">' + c.peso + '%</span></th>').join('') + '<th class="n">Calif. del periodo</th><th class="n hide-s">Promedio anual</th><th>Observación</th></tr>';
+  h += '<div class="card"><div class="row sp" style="margin-bottom:8px"><span class="small muted">En Observación toca 💬 para elegir una frase amable, o deja que la libreta sugiera una para cada niño.</span><button class="btn sm" data-act="obsAuto">Sugerir observaciones tiernas</button></div><div class="scroll"><table class="gridn"><tr><th>Alumno</th>' + crit.map(c => '<th class="n">' + esc(c.nombre) + ' <span class="muted">' + c.peso + '%</span></th>').join('') + '<th class="n">Calif. del periodo</th><th class="n hide-s">Promedio anual</th><th>Observación</th></tr>';
   h += '<tr><td class="nm muted small">Llenar vacíos con…</td>' + crit.map(c => '<td><div class="row" style="flex-wrap:nowrap;gap:3px"><input class="gi" id="all-' + c.id + '" inputmode="decimal" style="width:52px" placeholder="10"><button class="btn sm" data-act="llenar|' + c.id + '">OK</button></div></td>').join('') + '<td></td><td class="hide-s"></td><td></td></tr>';
   al.forEach((a, r) => {
     const d = calDoc(a.id, n.m), p = (d && d.p && d.p[n.p]) || {}, fin = notaPeriodo(d, n.p), an = notaAnual(d);
     h += '<tr><td class="nm"><span class="muted small">' + a.num + '.</span> ' + esc(a.nombre) + '</td>' + crit.map((c, ci) => '<td><input class="gi' + (num(p[c.id]) && (p[c.id] > 10 || p[c.id] < 0) ? ' bad' : '') + '" inputmode="decimal" autocomplete="off" data-r="' + r + '" data-c="' + ci + '" data-inp="gnota|' + a.id + '|' + c.id + '" value="' + (num(p[c.id]) ? p[c.id] : '') + '"></td>').join('') +
       '<td id="fin-' + a.id + '" class="fin ' + (fin != null && fin < S.cfg.esc.aprob ? 'low' : '') + '">' + fmtNota(fin) + '</td><td id="an-' + a.id + '" class="fin hide-s" style="font-size:15px">' + fmtNota(an) + '</td>' +
-      '<td><input class="go" list="obsl" data-inp="gobs|' + a.id + '" value="' + esc(p.obs || '') + '" placeholder="Opcional"></td></tr>';
+      '<td><div class="row" style="flex-wrap:nowrap;gap:4px"><input class="go" id="obs-' + a.id + '" data-inp="gobs|' + a.id + '" value="' + esc(p.obs || '') + '" placeholder="Opcional"><button class="btn sm" data-act="obsFrases|' + a.id + '" title="Frases">💬</button></div></td></tr>';
   });
-  h += '<tr id="avgrow"></tr></table></div><datalist id="obsl">' + FRASES_OBS.map(f => '<option value="' + esc(f) + '">').join('') + '</datalist>' + promedioPie(n) + '</div>';
+  h += '<tr id="avgrow"></tr></table></div>' + promedioPie(n) + '</div>';
   h += boletaPanel(n, al);
   return h;
 };
@@ -188,4 +188,31 @@ ACT.bolGrupo = () => {
 ACT.bolUna = () => {
   if (!window.jspdf) { toast('No cargó el generador de PDF; revisa tu internet', 'bad'); return; }
   const n = S.ui.n, a = S.alumnos[S.ui.bsel && S.alumnos[S.ui.bsel] ? S.ui.bsel : alumnosDe(n.g)[0].id]; descargar('boleta-' + a.id + '.pdf', boletasPDF([a]));
+};
+
+/* Observaciones amables para la boleta */
+function obsGuarda(aid, texto) {
+  const n = S.ui.n, key = aid + '_' + n.m, a = S.alumnos[aid];
+  const d = cl(S.calificaciones[key]) || { alumnoId: aid, grupoId: a.grupoId, materia: n.m, p: {} };
+  d.p = d.p || {}; d.p[n.p] = d.p[n.p] || {}; if (texto.trim()) d.p[n.p].obs = texto; else delete d.p[n.p].obs;
+  save('calificaciones', key, d);
+}
+ACT.obsFrases = (el, aid) => {
+  const m = S.ui.n.m, chips = (lst, tipo) => '<div class="chips" style="margin:6px 0 12px">' + lst.map((f, i) => '<button class="chip" data-act="obsPon|' + aid + '|' + tipo + '|' + i + '">' + esc(f) + '</button>').join('') + '</div>';
+  modal('<h3 style="margin:0 0 4px">Frases para ' + esc(S.alumnos[aid].nombre) + '</h3><div class="small muted">Toca una para agregarla. Puedes combinar una felicitación con una sugerencia.</div><h4>Felicitaciones</h4>' + chips(OBS_FELIC[m] || OBS_FELIC.ingles, 'f') + '<h4>Sugerencias cariñosas</h4>' + chips(OBS_SUG[m] || OBS_SUG.ingles, 's'));
+};
+ACT.obsPon = (el, aid, tipo, i) => {
+  const m = S.ui.n.m, f = ((tipo === 'f' ? OBS_FELIC : OBS_SUG)[m] || (tipo === 'f' ? OBS_FELIC : OBS_SUG).ingles)[Number(i)];
+  const d = calDoc(aid, m), cur = ((d && d.p && d.p[S.ui.n.p] && d.p[S.ui.n.p].obs) || '').trim();
+  obsGuarda(aid, cur ? cur.replace(/[.\s]+$/, '') + '. ' + f : f); ACT.askno(); render();
+};
+ACT.obsAuto = () => {
+  const n = S.ui.n; let k = 0, hechas = 0;
+  alumnosDe(n.g).forEach((a, i) => {
+    const d = calDoc(a.id, n.m), p = (d && d.p && d.p[n.p]) || {}, fin = notaPeriodo(d, n.p);
+    if (fin == null || (p.obs || '').trim()) return;
+    obsGuarda(a.id, obsSugerida(n.m, fin, i)); hechas++;
+  });
+  toast(hechas ? 'Listo: ' + hechas + ' observaciones sugeridas. Léelas y cámbialas si quieres.' : 'No hay niños con calificación y observación vacía', hechas ? 'ok' : '');
+  render();
 };

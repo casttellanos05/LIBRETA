@@ -5,34 +5,6 @@ const ESTADO_TXT = { impartida: 'Completada', cancelada: 'Cancelada', cambiada: 
 const ESTADO_CLS = { impartida: 'ok', cancelada: 'bad', cambiada: 'warn', pendiente: 'acc' };
 const gNombre = id => (S.grupos[id] ? S.grupos[id].grado + '.º ' + S.grupos[id].letra : id);
 
-function sesionDeClase(c) { return c.materia === 'ingles' ? posicion(gEf(c)) : null; }
-
-function planHTML(gid, s) {
-  const g = S.grupos[gid], nivel = (g && g.nivel) || 1, I = infoSesion(s);
-  const ov = S.planeaciones[gid + '_' + s];
-  let h = '';
-  if (ov) {
-    h += '<div class="note" style="margin-top:8px"><b>Plan ajustado' + (ov.autor ? ' por ' + esc(ov.autor) : '') + ':</b> ' + esc(ov.titulo || '') +
-      (ov.objetivo ? '<br>Objetivo: ' + esc(ov.objetivo) : '') + (ov.material ? '<br>Material: ' + esc(ov.material) : '') +
-      (Array.isArray(ov.actividades) && ov.actividades.length ? '<ul style="margin:6px 0 0 18px;padding:0">' + ov.actividades.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '') +
-      (ov.nota ? '<br><span class="muted">' + esc(ov.nota) + '</span>' : '') + '</div>';
-  }
-  if (I.fin) return h + '<p class="muted">Este grupo ya completó las 22 sesiones. Podemos planear el repaso final o una extensión.</p>';
-  if (I.diag) {
-    h += '<h4>Material</h4><p style="margin:0">' + esc(DIAGNOSTICO.material) + '</p><h4>Bloques</h4><ul style="margin:0 0 0 18px;padding:0">' + DIAGNOSTICO.partes.map(p => '<li>' + esc(p) + '</li>').join('') + '</ul>';
-    return h;
-  }
-  const C = I.C;
-  h += '<h4>Tema del ciclo</h4><p style="margin:0"><b>' + esc(C.tema) + '</b>. Palabras: ' + esc(C.palabras) + '.<br>Se recicla: ' + esc(C.recicla) + '. Producto del ciclo: ' + esc(C.producto) + '.</p>';
-  h += '<h4>Material de la semana</h4><p style="margin:0">' + esc(materialDe(I.ciclo, I.fase)) + '</p>';
-  h += '<h4>Tarea de su nivel (' + nivel + ' · ' + NIVELES[nivel] + ')</h4><p style="margin:0">' + esc(tareaDe(I.ciclo, I.fase, nivel)) + '</p>';
-  h += '<details><summary>Ver los 5 niveles de esta semana</summary><table style="margin-top:6px">' + [1, 2, 3, 4, 5].map(n => '<tr><td style="white-space:nowrap"><b>' + n + '</b> ' + NIVELES[n] + '</td><td>' + esc(tareaDe(I.ciclo, I.fase, n)) + '</td></tr>').join('') + '</table></details>';
-  const T = S.temario['s' + s];
-  if (T && Array.isArray(T.actividades) && T.actividades.length) h += (T.objetivo ? '<h4>Objetivo</h4><p style="margin:0">' + esc(T.objetivo) + '</p>' : '') + '<details open><summary>Actividades de la clase</summary><table style="margin-top:6px">' + T.actividades.map(a => '<tr><td style="white-space:nowrap;vertical-align:top">' + esc(a.min != null ? a.min + ' min' : '') + '</td><td><b>' + esc(a.nombre || '') + '</b>' + (a.descripcion ? ': ' + esc(a.descripcion) : '') + '</td></tr>').join('') + '</table></details>' + (T.evidencia_o_producto ? '<h4>Evidencia</h4><p style="margin:0">' + esc(T.evidencia_o_producto) + '</p>' : '');
-  else h += '<details><summary>Rutina de clase (50 min)</summary><table style="margin-top:6px">' + RUTINA_CLASE.map(r => '<tr><td style="white-space:nowrap">' + r[0] + ' min</td><td><b>' + esc(r[1]) + '</b>: ' + esc(r[2]) + '</td></tr>').join('') + '</table></details>';
-  return h;
-}
-
 function bitacoraHTML(c) {
   const gid = gEf(c), id = c.fecha + '_' + gid + '_' + c.materia, b = S.bitacora[id] || {};
   const sc = (campo, vals, labels) => '<div class="scale">' + vals.map((v, i) => '<button data-act="bit|' + id + '|' + campo + '|' + v + '" class="' + (b[campo] === v ? 'on' : '') + '" title="' + (labels ? labels[i] : v) + '">' + (labels ? labels[i] : v) + '</button>').join('') + '</div>';
@@ -41,7 +13,7 @@ function bitacoraHTML(c) {
     '<div><div class="small muted">Ánimo del grupo</div>' + sc('animo', [1, 2, 3, 4, 5], ANIMOS) + '</div>' +
     '<div><div class="small muted">Participación (1 poca, 5 mucha)</div>' + sc('part', [1, 2, 3, 4, 5]) + '</div>' +
     '<div><div class="small muted">¿Se cumplió el plan?</div><div class="chips">' + [['si', 'Sí'], ['parcial', 'A medias'], ['no', 'No']].map(o => '<button class="chip ' + (b.plan === o[0] ? 'on' : '') + '" data-act="bit|' + id + '|plan|' + o[0] + '">' + o[1] + '</button>').join('') + '</div></div>' +
-    (c.materia === 'ingles' ? '<div><div class="small muted">La próxima clase de este grupo…</div><div class="chips"><button class="chip ' + (!b.repetir ? 'on' : '') + '" data-act="bitrep|' + id + '|0">Avanzar a la siguiente sesión</button><button class="chip ' + (b.repetir ? 'on' : '') + '" data-act="bitrep|' + id + '|1">Repetir esta sesión</button></div></div>' : '') +
+    ('<div><div class="small muted">La próxima clase de este grupo…</div><div class="chips"><button class="chip ' + (!b.repetir ? 'on' : '') + '" data-act="bitrep|' + id + '|0">Avanzar a la siguiente clase</button><button class="chip ' + (b.repetir ? 'on' : '') + '" data-act="bitrep|' + id + '|1">Repetir esta clase</button></div></div>') +
     '<div><div class="small muted">¿Qué pasó? (toca los que apliquen)</div><div class="chips">' + TAGS_BIT.map((t, i) => '<button class="chip ' + (tags.indexOf(t) >= 0 ? 'on' : '') + '" data-act="bittag|' + id + '|' + i + '">' + esc(t) + '</button>').join('') + '</div></div>' +
     '<div><div class="small muted">Nota corta (qué funcionó, qué cambiarías)</div><textarea data-inp="bitnota|' + id + '" placeholder="Ej.: el juego de memoria funcionó, faltó tiempo para la tarea…">' + esc(b.nota || '') + '</textarea></div>' +
     '</div></details>';
@@ -76,12 +48,18 @@ function claseCard(c, f) {
   const nivel = (S.grupos[gid] && S.grupos[gid].nivel) || 1, ing = c.materia === 'ingles';
   const hora = c.ini ? '<div class="hora">' + hhmm(c.ini) + '<small>' + hhmm(c.fin) + (c.extra ? ' + ' + c.extra : '') + '</small></div>' : '<div class="hora">Extra<small>' + (c.repone ? 'reposición' : '') + '</small></div>';
   let plan = '';
-  if (ing) {
-    const s = (esDada(c) && num(c.sesion)) ? c.sesion : posicion(gid), I = infoSesion(s);
-    plan = '<div style="margin-top:8px">' + (esDada(c) ? 'Se dio: ' : '<span class="muted">Toca:</span> ') + '<b>' + esc(I.titulo) + '</b> <span class="badge acc">Nivel ' + nivel + ' · ' + NIVELES[nivel] + '</span></div>' +
-      ((e === 'pendiente' || e === 'impartida' || e === 'cambiada') ? '<details><summary>Ver plan y tarea de su nivel</summary>' + planHTML(gid, s) + '</details>' : '');
-  } else {
-    plan = '<div class="small muted" style="margin-top:8px">Computación · clase ' + (listaDadas(gid, 'compu').length + (esDada(c) ? 0 : 1)) + '. La planeación de Computación llega en la siguiente versión; mientras tanto registra aquí lo que viste en la bitácora.</div>';
+  {
+    const mat = c.materia, dado = esDada(c);
+    if (dado && c.tipo === 'eval') {
+      plan = '<div style="margin-top:8px">Se dio: <b>Clase de evaluación · ' + esc(S.cfg.periodos[(c.periodo || 1) - 1]) + '</b></div>' + '<div style="margin-top:6px"><button class="btn sm" data-act="irNotas|' + gid + '|' + mat + '|' + (c.periodo || 1) + '">Capturar calificaciones →</button></div>';
+    } else {
+      let si = sigClase(gid, mat);
+      if (dado && c.claseN) { const nv = c.nivel || si.nivel; si = Object.assign({}, si, { ev: null, nivel: nv, n: c.claseN, doc: claseN(mat, nv, c.claseN), fin: false }); }
+      const bl = !si.ev && !si.fin ? bloqueDe(mat, si.nivel, si.n) : null;
+      plan = '<div style="margin-top:8px">' + (dado ? 'Se dio: ' : '<span class="muted">Toca:</span> ') + '<b>' + esc(tituloSig(si)) + '</b> <span class="badge acc">Nivel ' + si.nivel + ' · ' + esc(nomNivel(mat, si.nivel)) + '</span>' + (si.doc && si.doc.borrador ? ' <span class="badge warn">borrador</span>' : '') + (si.ev ? ' <span class="badge warn">evaluación</span>' : '') + '</div>' +
+        (bl ? '<div class="small muted">Bloque ' + bl.i + ' de ' + bl.de + ': ' + esc(bl.tema) + (si.doc && si.doc.fase ? ' · ' + esc(si.doc.fase) : '') + '</div>' : '') +
+        ((e === 'pendiente' || dado) ? '<details><summary>Ver la clase completa</summary>' + planHTML(gid, mat, si) + '</details>' : '');
+    }
   }
   let acc = '';
   if (e === 'pendiente') {
@@ -96,7 +74,7 @@ function claseCard(c, f) {
     } else if (esFut) {
       acc = '<div class="row" style="margin-top:8px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button>' + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div>';
     } else {
-      acc = '<div style="margin-top:12px"><button class="btn ok big" data-act="marcar|' + c.key + '">✓ Completado</button><div class="row" style="margin-top:6px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button><button class="btn sm quiet" data-act="cambiar|' + c.key + '">Cambiar por otro grupo</button>' + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div></div>';
+      acc = '<div style="margin-top:12px"><button class="btn ok big" data-act="marcar|' + c.key + '">✓ Completado</button><div class="row" style="margin-top:6px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button><button class="btn sm quiet" data-act="cambiar|' + c.key + '">Cambiar por otro grupo</button>' + (evalActiva(gid, c.materia) ? '<button class="btn sm quiet" data-act="evalCancelar|' + gid + '|' + c.materia + '">Quitar evaluación</button>' : '<button class="btn sm quiet" data-act="evalIniciar|' + gid + '|' + c.materia + '|1">Dedicar a evaluación</button>') + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div></div>';
     }
   } else {
     const extra = e === 'cancelada' ? ' · ' + ({ escuela: 'la escuela', maestro: 'yo', otro: 'otro motivo' }[c.motivo] || '') + (c.reponer && !c.repuesta ? ' · por reponer' : '') :
@@ -113,11 +91,27 @@ function claseBase(c) {
   return { fecha: c.fecha, slotId: c.slotId, grupoId: c.grupoId, materia: c.materia, ini: c.ini || '', fin: c.fin || '', extra: c.extra || '', repone: c.repone || null };
 }
 function recDeKey(key) { return clasesDelDia(S.fecha).find(x => x.key === key); }
+function datosAvance(gid, mat) {
+  const ev = evalActiva(gid, mat), si = sigClase(gid, mat);
+  return ev ? { tipo: 'eval', periodo: ev.periodo, nivel: si.nivel, sesion: null, claseN: null } : { tipo: 'clase', nivel: si.nivel, claseN: si.n, sesion: si.pos };
+}
+function cierraEval(gid, mat) { const g = cl(S.grupos[gid]); if (g && g.evalFase && g.evalFase[mat]) { delete g.evalFase[mat]; save('grupos', gid, g); } }
 ACT.marcar = (el, key) => {
   const c = recDeKey(key); if (!c) return;
-  const d = Object.assign(claseBase(c), { estado: 'impartida', sesion: sesionDeClase(c), tarifa: S.cfg.tarifa || 0, pagan: pagan(c.grupoId) || null, ts: Date.now() });
-  save('clases', key, d); render();
+  const av = datosAvance(c.grupoId, c.materia);
+  const d = Object.assign(claseBase(c), av, { estado: 'impartida', tarifa: S.cfg.tarifa || 0, pagan: pagan(c.grupoId) || null, ts: Date.now() });
+  save('clases', key, d);
+  if (av.tipo === 'eval') { cierraEval(c.grupoId, c.materia); toast('Evaluación registrada. Captura las calificaciones en Notas.', 'ok'); }
+  render();
 };
+ACT.irNotas = (el, gid, mat, per) => { S.ui.n = Object.assign(S.ui.n || {}, { g: gid, m: mat, p: Number(per) }); ir('notas'); };
+ACT.evalIniciar = (el, gid, mat) => {
+  const g = cl(S.grupos[gid]); g.evalFase = g.evalFase || {}; g.evalFase[mat] = { periodo: Number(S.ui.evalPer && S.ui.evalPer[gid + mat]) || periodoSug(gid, mat), desde: hoy() };
+  save('grupos', gid, g); S.ui.evalForm = null; toast(gNombre(gid) + ': su siguiente clase de ' + MAT_NOMBRE[mat] + ' será de evaluación', 'ok'); render();
+};
+ACT.evalCancelar = (el, gid, mat) => { cierraEval(gid, mat); S.ui.evalForm = null; render(); };
+ACT.evalForm = (el, gid, mat) => { S.ui.evalForm = (S.ui.evalForm === gid + '|' + mat) ? null : gid + '|' + mat; render(); };
+CHG.evalPer = (el, gid, mat) => { S.ui.evalPer = S.ui.evalPer || {}; S.ui.evalPer[gid + mat] = el.value; };
 ACT.cancelar = (el, key) => { S.ui.cancel = key; S.ui.swap = null; render(); };
 ACT.cambiar = (el, key) => { S.ui.swap = key; S.ui.cancel = null; render(); };
 ACT.cancelx = () => { S.ui.cancel = null; S.ui.swap = null; render(); };
@@ -129,7 +123,8 @@ ACT.cancelok = (el, key) => {
 ACT.cambiook = (el, key) => {
   const c = recDeKey(key); if (!c) return; const gr = $('#gsw').value;
   const d = Object.assign(claseBase(c), { estado: 'cambiada', grupoReal: gr, reponer: $('#rep').checked, repuesta: false, tarifa: S.cfg.tarifa || 0, pagan: pagan(gr) || null, ts: Date.now() });
-  d.sesion = c.materia === 'ingles' ? posicion(gr) : null;
+  Object.assign(d, datosAvance(gr, c.materia));
+  if (d.tipo === 'eval') cierraEval(gr, c.materia);
   S.ui.swap = null; save('clases', key, d); render();
 };
 ACT.deshacer = (el, key) => {
@@ -177,23 +172,20 @@ ACT.diaMas = (el, n) => { let f = S.fecha; f = Number(n) > 0 ? sigHabil(f) : ant
 CHG.fechaSel = el => { if (el.value) ACT.dia(null, el.value); };
 
 function prepHTML(f, items) {
-  const ing = items.filter(c => c.materia === 'ingles' && c.estado === 'pendiente');
-  const comp = items.filter(c => c.materia === 'compu' && c.estado === 'pendiente');
-  if (!ing.length && !comp.length) return '';
-  const mats = {};
-  ing.forEach(c => {
-    const gid = gEf(c), I = infoSesion(posicion(gid));
-    const m = I.fin ? 'Repaso libre' : I.diag ? DIAGNOSTICO.material : materialDe(I.ciclo, I.fase);
-    (mats[m] = mats[m] || { g: [], n: 0, imp: !I.fin && !I.diag && I.fase === 2 }).g.push(gNombre(gid));
-    mats[m].n += alumnosDe(gid).length;
-  });
+  const pend = items.filter(c => c.estado === 'pendiente'); if (!pend.length) return '';
   let h = '<div class="card"><h3>Preparar para ' + (f === sigHabil(hoy()) ? 'mañana' : fmtLargo(f)) + '</h3>';
-  if (ing.length) {
-    h += '<h4>Material de Inglés</h4><ul style="margin:0 0 0 18px;padding:0">' + Object.keys(mats).map(m => '<li>' + esc(m) + ' <span class="muted">(' + mats[m].g.join(', ') + ')</span>' + (mats[m].imp ? ' <span class="badge warn">imprimir ' + mats[m].n + ' copias</span>' : '') + '</li>').join('') + '</ul>';
-    h += '<h4>Qué toca en cada grupo</h4><ul style="margin:0 0 0 18px;padding:0">' + ing.map(c => '<li><b>' + hhmm(c.ini) + ' ' + gNombre(gEf(c)) + '</b>: ' + esc(infoSesion(posicion(gEf(c))).titulo) + ' · tarea nivel ' + ((S.grupos[gEf(c)] || {}).nivel || 1) + '</li>').join('') + '</ul>';
-  }
-  if (comp.length) h += '<h4>Computación</h4><p style="margin:0">' + comp.map(c => hhmm(c.ini) + ' ' + gNombre(c.grupoId)).join(', ') + '. Sin planeación todavía; piensa qué actividad llevarás.</p>';
-  h += '<div class="small muted" style="margin-top:8px">Lista de revisión: ☐ bocina cargada ☐ tarjetas impresas y recortadas ☐ hojas/copias ☐ plumones y cinta ☐ lista de asistencia</div></div>';
+  const mats = {}, filas = [];
+  pend.forEach(c => {
+    const gid = gEf(c), si = sigClase(gid, c.materia);
+    filas.push('<li><b>' + hhmm(c.ini) + ' ' + gNombre(gid) + '</b> <span class="muted">' + MAT_NOMBRE[c.materia] + '</span>: ' + esc(tituloSig(si)) + '</li>');
+    if (si.ev) { const k = 'Exámenes de ' + MAT_NOMBRE[c.materia] + ' (' + S.cfg.periodos[si.ev.periodo - 1] + ')'; (mats[k] = mats[k] || { g: [], t: '', n: 0 }).g.push(gNombre(gid)); mats[k].n += alumnosDe(gid).length; return; }
+    if (!si.doc) return;
+    const ml = matLineas(si.doc); Object.keys(ml).forEach(k => { const m = mats[k] = mats[k] || { g: [], t: ml[k], n: 0 }; if (m.g.indexOf(gNombre(gid)) < 0) m.g.push(gNombre(gid)); });
+  });
+  h += '<h4>Qué toca en cada grupo</h4><ul style="margin:0 0 0 18px;padding:0">' + filas.join('') + '</ul>';
+  const ks = Object.keys(mats);
+  if (ks.length) h += '<h4>Material que necesitas</h4><ul style="margin:0 0 0 18px;padding:0">' + ks.map(k => '<li><b>' + esc(k) + '</b>' + (mats[k].t ? ' · ' + esc(mats[k].t) : '') + (mats[k].n ? ' · ' + mats[k].n + ' copias en total' : '') + ' <span class="muted">(' + mats[k].g.join(', ') + ')</span></li>').join('') + '</ul>';
+  h += '<div class="small muted" style="margin-top:8px">Lista de revisión: ☐ bocina cargada ☐ material impreso y recortado ☐ plumones y cinta ☐ lista de asistencia</div></div>';
   return h;
 }
 

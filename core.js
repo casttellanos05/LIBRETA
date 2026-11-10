@@ -5,11 +5,11 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const cl = o => (o === undefined ? undefined : JSON.parse(JSON.stringify(o)));
 const num = v => (typeof v === 'number' && !isNaN(v));
 const fix1 = x => (x == null || isNaN(x) ? '—' : (Math.round(x * 10) / 10).toFixed(1));
-const COLS = ['grupos', 'alumnos', 'horario', 'clases', 'bitacora', 'calificaciones', 'pagos', 'planeaciones', 'cambios', 'temario'];
+const COLS = ['grupos', 'alumnos', 'horario', 'clases', 'bitacora', 'calificaciones', 'pagos', 'planeaciones', 'cambios'];
 
 const S = {
   db: null, user: null, cfg: cl(CFG_DEF), loaded: {}, slow: false, err: null,
-  grupos: {}, alumnos: {}, horario: {}, clases: {}, bitacora: {}, calificaciones: {}, pagos: {}, planeaciones: {}, cambios: {}, temario: {},
+  grupos: {}, alumnos: {}, horario: {}, clases: {}, bitacora: {}, calificaciones: {}, pagos: {}, planeaciones: {}, cambios: {}, plan: {},
   metricas: null, view: 'hoy', fecha: null, ui: {}
 };
 const VIEWS = {}, ACT = {}, CHG = {}, INP = {};
@@ -114,7 +114,6 @@ function subscribe() {
         if (k.indexOf(name + '/') === 0) { const id = k.slice(name.length + 1); if (S[name][id] !== undefined) m[id] = S[name][id]; else delete m[id]; }
       }
       S[name] = m; S.loaded[name] = true; S.slow = false;
-      if (name === 'temario' && typeof aplicaTemario === 'function') aplicaTemario();
       softRender();
     }, e => { S.err = e; toast('Error al leer ' + name + ': ' + (e.message || e.code), 'bad'); });
   });
@@ -149,7 +148,7 @@ document.addEventListener('focusout', () => { if (pendingRender) { pendingRender
 function sinDb() {
   return '<div class="card note warn"><b>Esta página necesita abrirse desde Claude</b> para poder guardar tus datos. Ábrela desde el enlace de la libreta en tu cuenta.</div>';
 }
-const TABS = [['hoy', 'Hoy'], ['semana', 'Semana'], ['notas', 'Notas'], ['cobros', 'Cobros'], ['grupos', 'Grupos'], ['avance', 'Avance'], ['temario', 'Temario'], ['ajustes', 'Ajustes'], ['mas', 'Más']];
+const TABS = [['hoy', 'Hoy'], ['semana', 'Semana'], ['notas', 'Notas'], ['cobros', 'Cobros'], ['grupos', 'Grupos'], ['avance', 'Avance'], ['temario', 'Plan'], ['ajustes', 'Ajustes'], ['mas', 'Más']];
 const ICON = {
   hoy: '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/>', semana: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   notas: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>', cobros: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
@@ -163,7 +162,7 @@ function renderNav() {
   const enMas = MOVIL.indexOf(S.view) < 0;
   $('#nav').innerHTML = TABS.map(t => '<a data-act="ir|' + t[0] + '" class="' + (S.view === t[0] || (t[0] === 'mas' && enMas) ? 'on ' : '') + (MOVIL.indexOf(t[0]) < 0 ? 'only-d ' : '') + (t[0] === 'mas' ? 'only-m' : '') + '">' + ico(t[0]) + '<span>' + t[1] + '</span></a>').join('');
 }
-VIEWS.mas = () => '<h2 style="margin-bottom:12px">Más</h2><div class="stack" style="gap:8px">' + [['grupos', 'Grupos y alumnos', 'Listas, importación desde Excel, quién paga'], ['avance', 'Avance', 'Dónde va cada grupo, métricas y reporte final'], ['temario', 'Temario', 'Carga y consulta el programa de Inglés'], ['ajustes', 'Ajustes', 'Escuela, evaluación, horario, sincronización y respaldo']].map(x => '<a class="card linkc" data-act="ir|' + x[0] + '">' + ico(x[0]) + '<div><b>' + x[1] + '</b><div class="small muted">' + x[2] + '</div></div></a>').join('') + '</div>';
+VIEWS.mas = () => '<h2 style="margin-bottom:12px">Más</h2><div class="stack" style="gap:8px">' + [['grupos', 'Grupos y alumnos', 'Listas, importación desde Excel, quién paga'], ['avance', 'Avance', 'Dónde va cada grupo, métricas y reporte final'], ['temario', 'Plan académico', 'Carga y consulta el plan de Inglés y Computación'], ['ajustes', 'Ajustes', 'Escuela, evaluación, horario, sincronización y respaldo']].map(x => '<a class="card linkc" data-act="ir|' + x[0] + '">' + ico(x[0]) + '<div><b>' + x[1] + '</b><div class="small muted">' + x[2] + '</div></div></a>').join('') + '</div>';
 function ir(v) { S.view = v; try { history.replaceState(null, '', '#' + v); } catch (e) { } render(); window.scrollTo(0, 0); }
 ACT.ir = (el, v) => ir(v);
 
@@ -233,30 +232,6 @@ const esDada = c => c.estado === 'impartida' || c.estado === 'cambiada';
 const gEf = c => (c.estado === 'cambiada' ? (c.grupoReal || c.grupoId) : c.grupoId);
 const cmpClase = (a, b) => (a.fecha + (a.ini || '')).localeCompare(b.fecha + (b.ini || ''));
 const listaDadas = (gid, mat) => Object.values(S.clases).filter(c => esDada(c) && gEf(c) === gid && c.materia === mat).sort(cmpClase);
-function posicion(gid) {
-  const g = S.grupos[gid]; if (!g) return 0;
-  const dadas = listaDadas(gid, 'ingles').length;
-  const rep = Object.values(S.bitacora).filter(b => b.grupoId === gid && b.materia === 'ingles' && b.repetir).length;
-  return Math.max(0, Math.min(TOTAL_SESIONES, dadas - rep + ((g.ajuste && g.ajuste.ingles) || 0)));
-}
-function infoSesion(s) {
-  if (s >= TOTAL_SESIONES) return { s, fin: true, titulo: 'Programa completo', ciclo: 99, fase: -1 };
-  if (s <= 0) return { s: 0, diag: true, titulo: 'Semana de diagnóstico', ciclo: 0, fase: -1 };
-  const ciclo = Math.ceil(s / 3), fase = (s - 1) % 3, C = CICLOS[ciclo - 1] || { n: ciclo, tema: 'Ciclo ' + ciclo, palabras: '', recicla: '', producto: '' };
-  return { s, ciclo, fase, C, titulo: 'Ciclo ' + ciclo + ' · ' + FASES[fase] + ': ' + C.tema };
-}
-function materialDe(ci, fase) {
-  const T = S.temario['s' + ((ci - 1) * 3 + fase + 1)]; if (T && T.material) return T.material;
-  if (ci === 1) return MATERIAL_C1[fase];
-  const C = CICLOS[ci - 1] || { palabras: '', recicla: '', producto: '' };
-  return ['Tarjetas del vocabulario (' + C.palabras + ') y la canción en la bocina', 'Las mismas tarjetas, tarjetas de ' + C.recicla + ' y un tablero de juego con dado', 'Hoja imprimible para el producto: ' + C.producto][fase];
-}
-function tareaDe(ci, fase, nivel) {
-  const T = S.temario['s' + ((ci - 1) * 3 + fase + 1)]; if (T && T.tareas_por_nivel && T.tareas_por_nivel[nivel]) return T.tareas_por_nivel[nivel];
-  if (!TAREAS_C1[nivel]) return '';
-  return ci === 1 ? TAREAS_C1[nivel][fase] : TAREA_GEN[nivel][fase];
-}
-
 /* clases de una fecha (horario + registros + extras) */
 function clasesDelDia(f) {
   const d = dow(f), out = [];
@@ -300,6 +275,7 @@ async function boot() {
   window.addEventListener('online', updSync); window.addEventListener('offline', updSync);
   if (typeof SEED !== 'undefined' && !LDB.count()) { LDB.seed('config/main', SEED.config); SEED.grupos.forEach(g => LDB.seed('grupos/' + g.id, g)); SEED.horario.forEach(x => LDB.seed('horario/' + x.id, x)); }
   S.db = LDB; renderNav(); subscribe(); updSync(); render(); SYNC.run(false);
+  PLAN.load().then(p => { S.plan = p; planReset(); softRender(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
 }
