@@ -11,6 +11,10 @@ function notaSel() {
 }
 const fmtNota = v => (v == null ? '—' : (S.cfg.redondeo === 'entero' ? String(v) : Number(v).toFixed(1)));
 
+const normBus = t => String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const coincide = (nombre, q) => { const w = normBus(q).split(' ').filter(Boolean); if (!w.length) return true; const t = normBus(nombre); return w.every(x => t.indexOf(x) >= 0); };
+const filaVisible = tr => tr && tr.style.display !== 'none';
+
 VIEWS.notas = function () {
   const n = notaSel();
   if (!n) return '<div class="card empty">Primero da de alta tus grupos y alumnos en <b>Grupos</b>.</div>';
@@ -22,11 +26,11 @@ VIEWS.notas = function () {
   if (!al.length) return h + '<div class="card empty">Este grupo todavía no tiene alumnos.</div>';
   const peso = crit.reduce((s, c) => s + c.peso, 0);
   if (peso !== 100) h += '<div class="note warn" style="margin-bottom:10px">Los porcentajes de los criterios suman ' + peso + ', no 100. El promedio se calcula proporcional; ajústalos en Ajustes.</div>';
-  h += '<div class="card"><div class="row sp" style="margin-bottom:8px"><span class="small muted">La observación se pone sola según el promedio. Toca 💬 para elegir otra (felicitación, apoyo o atención en clase) o escribe la tuya.</span><button class="btn sm" data-act="obsAuto">Poner observaciones automáticas</button></div><div class="scroll"><table class="gridn"><tr><th>Alumno</th>' + crit.map(c => '<th class="n">' + esc(c.nombre) + ' <span class="muted">' + c.peso + '%</span></th>').join('') + '<th class="n">Calif. del periodo</th><th class="n hide-s">Promedio anual</th><th>Observación</th></tr>';
+  h += '<div class="card"><div class="row sp" style="margin-bottom:8px"><span class="small muted">La observación se pone sola según el promedio. Toca 💬 para elegir otra (felicitación, apoyo o atención en clase) o escribe la tuya.</span><button class="btn sm" data-act="obsAuto">Poner observaciones automáticas</button></div>' + busHTML(n, al) + '<div class="scroll"><table class="gridn"><tr><th>Alumno</th>' + crit.map(c => '<th class="n">' + esc(c.nombre) + ' <span class="muted">' + c.peso + '%</span></th>').join('') + '<th class="n">Calif. del periodo</th><th class="n hide-s">Promedio anual</th><th>Observación</th></tr>';
   h += '<tr><td class="nm muted small">Llenar vacíos con…</td>' + crit.map(c => '<td><div class="row" style="flex-wrap:nowrap;gap:3px"><input class="gi" id="all-' + c.id + '" inputmode="decimal" style="width:52px" placeholder="10"><button class="btn sm" data-act="llenar|' + c.id + '">OK</button></div></td>').join('') + '<td></td><td class="hide-s"></td><td></td></tr>';
   al.forEach((a, r) => {
     const d = calDoc(a.id, n.m), p = (d && d.p && d.p[n.p]) || {}, fin = notaPeriodo(d, n.p), an = notaAnual(d);
-    h += '<tr><td class="nm"><span class="muted small">' + a.num + '.</span> ' + esc(a.nombre) + '</td>' + crit.map((c, ci) => '<td><input class="gi' + (num(p[c.id]) && (p[c.id] > 10 || p[c.id] < 0) ? ' bad' : '') + '" inputmode="decimal" autocomplete="off" data-r="' + r + '" data-c="' + ci + '" data-inp="gnota|' + a.id + '|' + c.id + '" value="' + (num(p[c.id]) ? p[c.id] : '') + '"></td>').join('') +
+    h += '<tr class="arow" data-nm="' + esc(normBus(a.nombre)) + '"' + (coincide(a.nombre, n.q) ? '' : ' style="display:none"') + '><td class="nm"><span class="muted small">' + a.num + '.</span> ' + esc(a.nombre) + '</td>' + crit.map((c, ci) => '<td><input class="gi' + (num(p[c.id]) && (p[c.id] > 10 || p[c.id] < 0) ? ' bad' : '') + '" inputmode="decimal" autocomplete="off" data-r="' + r + '" data-c="' + ci + '" data-inp="gnota|' + a.id + '|' + c.id + '" value="' + (num(p[c.id]) ? p[c.id] : '') + '"></td>').join('') +
       '<td id="fin-' + a.id + '" class="fin ' + (fin != null && fin < S.cfg.esc.aprob ? 'low' : '') + '">' + fmtNota(fin) + '</td><td id="an-' + a.id + '" class="fin hide-s" style="font-size:15px">' + fmtNota(an) + '</td>' +
       '<td><div class="row" style="flex-wrap:nowrap;gap:4px"><input class="go" id="obs-' + a.id + '" data-inp="gobs|' + a.id + '" value="' + esc(p.obs || '') + '" placeholder="Se escribe sola"><button class="btn sm" data-act="obsFrases|' + a.id + '" title="Frases">💬</button></div></td></tr>';
   });
@@ -34,6 +38,19 @@ VIEWS.notas = function () {
   h += boletaPanel(n, al);
   return h;
 };
+function busHTML(n, al) {
+  const q = n.q || '', v = al.filter(a => coincide(a.nombre, q)).length;
+  return '<div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:nowrap;align-items:center"><input id="nq" type="search" autocomplete="off" placeholder="🔍 Buscar alumno por nombre…" value="' + esc(q) + '" data-inp="nBus" data-enter="nBusEnter" style="flex:1;min-width:0">' +
+    '<button class="btn sm" id="nqx" data-act="nBusLimpia" style="' + (q ? '' : 'display:none') + '">Limpiar</button><span class="small muted nw" id="nqc">' + (q ? (v ? v + ' de ' + al.length : 'Sin resultados') : '') + '</span></div>';
+}
+function aplicaBus() {
+  const n = S.ui.n, q = n.q || ''; let v = 0, tot = 0;
+  document.querySelectorAll('tr.arow').forEach(tr => { const ok = coincide(tr.dataset.nm, q); tr.style.display = ok ? '' : 'none'; tot++; if (ok) v++; });
+  const c = $('#nqc'), x = $('#nqx'); if (c) c.textContent = q ? (v ? v + ' de ' + tot : 'Sin resultados') : ''; if (x) x.style.display = q ? '' : 'none';
+}
+INP.nBus = el => { S.ui.n.q = el.value; aplicaBus(); };
+ACT.nBusLimpia = () => { S.ui.n.q = ''; const i = $('#nq'); if (i) { i.value = ''; i.focus(); } aplicaBus(); };
+ACT.nBusEnter = () => { const x = [...document.querySelectorAll('tr.arow')].find(filaVisible); const i = x && x.querySelector('input.gi'); if (i) { i.focus(); i.select(); } };
 function promedioPie(n) {
   const al = alumnosDe(n.g), crit = critDe(n.m);
   const prom = c => { const v = al.map(a => { const d = calDoc(a.id, n.m); return d && d.p && d.p[n.p] ? d.p[n.p][c] : null; }).filter(num); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
@@ -49,7 +66,7 @@ function refrescaFila(aid) {
   const ob = $('#obs-' + aid), pp = d && d.p && d.p[n.p]; if (ob && document.activeElement !== ob) ob.value = (pp && pp.obs) || '';
   const pie = $('#pie'); if (pie) pie.outerHTML = promedioPie(n);
 }
-CHG.nSel = (el, k) => { S.ui.n[k] = el.value; render(); };
+CHG.nSel = (el, k) => { S.ui.n[k] = el.value; if (k === 'g') S.ui.n.q = ''; render(); };
 ACT.nSet = (el, k, v) => { S.ui.n[k] = k === 'p' ? Number(v) : v; render(); };
 function parseNota(t) {
   t = String(t).trim().replace(',', '.'); if (t === '') return '';
@@ -80,15 +97,17 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === 'ArrowDown') t = [r + 1, c]; else if (e.key === 'ArrowUp') t = [r - 1, c];
   else if (e.key === 'ArrowRight' && el.selectionStart === el.value.length) t = [r, c + 1]; else if (e.key === 'ArrowLeft' && el.selectionStart === 0) t = [r, c - 1];
   if (!t) return; e.preventDefault();
-  const nx = document.querySelector('input.gi[data-r="' + t[0] + '"][data-c="' + t[1] + '"]'); if (nx) { nx.focus(); nx.select(); }
+  const st = t[0] > r ? 1 : -1; let rr = t[0];
+  for (;;) { const nx = document.querySelector('input.gi[data-r="' + rr + '"][data-c="' + t[1] + '"]'); if (!nx) break; if (filaVisible(nx.closest('tr'))) { nx.focus(); nx.select(); break; } if (t[0] === r) break; rr += st; }
 });
 document.addEventListener('paste', e => {
   const el = e.target; if (!el.classList || !el.classList.contains('gi') || el.dataset.r == null) return;
   const txt = (e.clipboardData || window.clipboardData).getData('text'); if (!/[\n\t]/.test(txt.trim())) return;
   e.preventDefault();
   const r0 = Number(el.dataset.r), c0 = Number(el.dataset.c), crit = critDe(S.ui.n.m), al = alumnosDe(S.ui.n.g), n = S.ui.n;
+  const vis = al.map((a, i) => i).filter(i => { const x = document.querySelector('input.gi[data-r="' + i + '"]'); return x && filaVisible(x.closest('tr')); }), p0 = Math.max(0, vis.indexOf(r0));
   txt.trim().split(/\r?\n/).forEach((line, i) => line.split('\t').forEach((cell, j) => {
-    const a = al[r0 + i], c = crit[c0 + j]; if (!a || !c) return; const v = parseNota(cell);
+    const a = al[vis[p0 + i]], c = crit[c0 + j]; if (!a || !c) return; const v = parseNota(cell);
     if (v === undefined || (v !== '' && (v < 0 || v > 10))) return; setCrit(a.id, n.m, String(n.p), c.id, v === '' ? null : v);
   }));
   render();
