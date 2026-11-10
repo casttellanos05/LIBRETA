@@ -181,12 +181,12 @@ function boletasPDF(lista) {
   });
   return doc.output('arraybuffer');
 }
-ACT.bolGrupo = () => {
-  if (!window.jspdf) { toast('No cargó el generador de PDF; revisa tu internet', 'bad'); return; }
+ACT.bolGrupo = async () => {
+  if (!(await asegurarPDF())) return;
   const n = S.ui.n, al = alumnosDe(n.g); descargar('boletas-' + n.g + '.pdf', boletasPDF(al));
 };
-ACT.bolUna = () => {
-  if (!window.jspdf) { toast('No cargó el generador de PDF; revisa tu internet', 'bad'); return; }
+ACT.bolUna = async () => {
+  if (!(await asegurarPDF())) return;
   const n = S.ui.n, a = S.alumnos[S.ui.bsel && S.alumnos[S.ui.bsel] ? S.ui.bsel : alumnosDe(n.g)[0].id]; descargar('boleta-' + a.id + '.pdf', boletasPDF([a]));
 };
 
@@ -204,7 +204,7 @@ ACT.obsFrases = (el, aid) => {
 ACT.obsPon = (el, aid, tipo, i) => {
   const m = S.ui.n.m, f = ((tipo === 'f' ? OBS_FELIC : OBS_SUG)[m] || (tipo === 'f' ? OBS_FELIC : OBS_SUG).ingles)[Number(i)];
   const d = calDoc(aid, m), cur = ((d && d.p && d.p[S.ui.n.p] && d.p[S.ui.n.p].obs) || '').trim();
-  obsGuarda(aid, cur ? cur.replace(/[.\s]+$/, '') + '. ' + f : f); ACT.askno(); render();
+  obsGuarda(aid, uneObs(cur, f)); ACT.askno(); render();
 };
 ACT.obsAuto = () => {
   const n = S.ui.n; let k = 0, hechas = 0;

@@ -28,59 +28,35 @@ const OBS_FELIC = {
   ingles: [
     'Participa con entusiasmo y alegría en cada clase de inglés',
     'Excelente avance en este periodo: ¡felicidades por su esfuerzo!',
-    'Se anima a hablar inglés sin miedo y eso se nota en cada clase',
-    'Es un gusto verle disfrutar aprender inglés',
-    'Su pronunciación mejora clase con clase',
-    'Su vocabulario crece cada semana; está construyendo una muy buena base',
-    'Escucha con atención y responde con seguridad',
-    'Se nota el cariño y el apoyo de casa en su avance. ¡Gracias!',
-    'Ha descubierto que aprender inglés puede ser divertido',
-    'Comparte lo que sabe y ayuda a sus compañeros con alegría',
-    'Cada clase suma: su progreso en inglés es notable',
-    'Nos alegra ver cómo crece su confianza al usar el inglés',
-    'Llega con ganas de aprender y sus resultados lo reflejan',
-    'Con constancia está logrando cosas muy bonitas en inglés'
+    'Cada clase suma: su progreso en inglés es notable'
   ],
   compu: [
     'Explora con curiosidad en computación y aprende muy rápido',
-    'Trabaja con orden y cuidado en la computadora',
     'Excelente avance en este periodo: ¡felicidades por su esfuerzo!',
-    'Disfruta aprender en computación y comparte lo que descubre',
-    'Sigue las instrucciones con atención y logra muy buenos resultados',
-    'Cada clase suma: está desarrollando habilidades que le servirán toda la vida',
-    'Ayuda a sus compañeros con paciencia y buena actitud',
-    'Se nota el apoyo de casa en su avance. ¡Gracias!',
-    'Muestra seguridad y autonomía al trabajar en la computadora',
-    'Nos alegra ver cómo crece su confianza con la tecnología'
+    'Cada clase suma: está desarrollando habilidades que le servirán toda la vida'
   ]
 };
 const OBS_SUG = {
   ingles: [
     'Le ayudará mucho repasar el vocabulario en casa con juegos o tarjetas',
     'Un repaso breve en casa, de unos 10 minutos, será un gran impulso para seguir avanzando',
-    'Muestra seguridad al hablar; con un poco de práctica en casa irá todavía más lejos',
-    'Poco a poco se anima más a participar; sigamos motivándole con cariño',
-    'Practicar en casa las palabras de la semana le dará aún más confianza',
-    'Escuchar canciones o cuentos cortos en inglés le ayudará a avanzar con alegría',
-    'Con su esfuerzo y un poquito más de práctica logrará resultados muy bonitos',
-    'Celebrar cada palabra nueva que aprende le dará muchas ganas de seguir'
+    'Poco a poco se anima más a participar; sigamos motivándole con cariño'
   ],
   compu: [
     'Practicar unos minutos en casa lo que vemos en clase le dará más seguridad',
-    'Con un poco más de práctica en el teclado y el mouse seguirá avanzando muy bien',
-    'Poco a poco se anima más a participar; sigamos motivándole con cariño',
-    'Platicar con él o ella sobre lo que aprendió en clase le ayudará a recordarlo',
-    'Con su esfuerzo y un poquito más de práctica logrará resultados muy bonitos'
+    'Platicar sobre lo que aprendió en clase le ayudará a recordarlo',
+    'Poco a poco se anima más a participar; sigamos motivándole con cariño'
   ]
 };
 const FRASES_OBS = OBS_FELIC.ingles.concat(OBS_SUG.ingles);
 /* Sugerencia automática según la calificación del periodo: siempre abre con algo bonito. */
+const uneObs = (a, b) => { a = String(a || '').trim(); return a ? a + (/[.!?]$/.test(a) ? ' ' : '. ') + b : b; };
 function obsSugerida(mat, nota, i) {
   const F = OBS_FELIC[mat] || OBS_FELIC.ingles, G = OBS_SUG[mat] || OBS_SUG.ingles, k = i || 0;
   if (nota == null) return '';
   if (nota >= 9) return F[k % F.length];
-  if (nota >= 8) return F[(k + 3) % F.length] + '. ' + G[k % G.length];
-  return F[(k + 5) % F.length] + '. ' + G[(k + 1) % G.length];
+  if (nota >= 8) return uneObs(F[(k + 3) % F.length], G[k % G.length]);
+  return uneObs(F[(k + 5) % F.length], G[(k + 1) % G.length]);
 }
 
 const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];

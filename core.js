@@ -279,3 +279,16 @@ async function boot() {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
 }
+
+/* ---------- componentes externos (Excel y PDF): carpeta lib, con respaldo en internet ---------- */
+function cargaScript(src) { return new Promise(ok => { const s = document.createElement('script'); s.src = src; s.onload = () => ok(true); s.onerror = () => ok(false); document.head.appendChild(s); }); }
+async function asegurarPDF() {
+  if (window.jspdf) return true;
+  for (const src of ['lib/jspdf.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js']) { if (await cargaScript(src) && window.jspdf) return true; }
+  toast('No se encontró el generador de PDF. En tu repositorio de GitHub falta la carpeta lib (lib/jspdf.umd.min.js). Súbela completa y vuelve a abrir la app.', 'bad'); return false;
+}
+async function estadoLibs() {
+  const r = {};
+  for (const f of ['lib/jspdf.umd.min.js', 'lib/xlsx.full.min.js']) { try { const x = await fetch(f, { method: 'HEAD', cache: 'no-store' }); r[f] = x.ok; } catch (e) { r[f] = false; } }
+  return r;
+}

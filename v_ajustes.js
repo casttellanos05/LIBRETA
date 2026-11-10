@@ -21,6 +21,7 @@ VIEWS.ajustes = function () {
     '<div class="row" style="margin-top:10px"><button class="btn pri" data-act="syGuardar">Guardar y sincronizar</button>' + (SYNC.on() ? '<button class="btn" data-act="syAhora">Sincronizar ahora</button><button class="btn ghost danger" data-act="syQuitar">Desconectar</button>' : '') + '</div>' +
     '<div class="small muted" style="margin-top:8px">' + (SYNC.on() ? (lastS ? 'Última sincronización: ' + new Date(lastS).toLocaleString('es-MX') + '.' : 'Aún no se ha sincronizado.') + (SYNC.err() && SYNC.err() !== 'offline' ? ' <span style="color:var(--bad)">Error: ' + esc(SYNC.err()) + '</span>' : '') : 'Sin sincronización: los datos viven solo en este equipo. Haz respaldos seguido.') + '</div></div>';
   h += '<div class="card"><h3>Copia completa de la libreta</h3><p class="muted" style="margin:0 0 8px">Un archivo .json con todo (para pasar tus datos a otro equipo sin internet o restaurarlos). Contiene nombres y calificaciones.</p><div class="row"><button class="btn" data-act="copiaBajar">Descargar copia (.json)</button><label class="btn" style="display:inline-flex;align-items:center">Restaurar desde copia<input type="file" accept=".json" data-chg="copiaSubir" hidden></label></div></div>';
+  h += '<div class="card flat"><h3>Componentes de la app</h3><p class="muted" style="margin:0 0 8px">Excel y PDF necesitan la carpeta <b>lib</b> publicada junto a la app. Si no se generan boletas o no se lee el Excel, toca Revisar.</p><button class="btn" data-act="libProbar">Revisar</button> <span id="libEstado" class="small"></span></div>';
   h += '<div class="card flat"><h3>Privacidad</h3><p class="muted" style="margin:0">Los datos de tus alumnos se guardan en este equipo y, si activas la sincronización, en tu propia hoja de Google. No se publican en internet junto con la app.</p></div>';
   return h;
 };
@@ -40,8 +41,8 @@ ACT.horAdd = () => {
 };
 
 /* ---------- Respaldo xlsx ---------- */
-ACT.respaldo = () => {
-  if (typeof XLSX === 'undefined') { toast('No se pudo abrir el lector de Excel; vuelve a abrir la app con internet una vez', 'bad'); return; }
+ACT.respaldo = async () => {
+  if (!(await asegurarXLSX())) { toast('No se encontró el lector de Excel. En GitHub falta la carpeta lib (lib/xlsx.full.min.js).', 'bad'); return; }
   const wb = XLSX.utils.book_new(), add = (n, rows) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length ? rows : [{ vacio: '' }]), n);
   add('Grupos', ordenGrupos().map(g => ({ Grupo: g.id, Grado: g.grado, Letra: g.letra, Maestro_titular: g.maestro || '', Nivel_ingles: g.nivel, Nivel_computacion: nivelDe(g.id, 'compu'), Meta_nivel: g.nivelMeta || '', Materias: matsDe(g.id).map(m => MAT_NOMBRE[m]).join(' y '), Clase_ingles: posicion(g.id, 'ingles') + 1, Clase_computacion: matsDe(g.id).indexOf('compu') >= 0 ? posicion(g.id, 'compu') + 1 : '', Ajuste_ingles: (g.ajuste && g.ajuste.ingles) || 0, Ajuste_computacion: (g.ajuste && g.ajuste.compu) || 0 })));
   add('Alumnos', Object.values(S.alumnos).sort((a, b) => a.grupoId.localeCompare(b.grupoId) || a.num - b.num).map(a => ({ Grupo: a.grupoId, Num: a.num, Nombre: a.nombre, Paga: a.paga === false ? 'no' : 'sí', Id: a.id })));
@@ -78,4 +79,10 @@ CHG.copiaSubir = async el => {
     ask('¿Restaurar ' + n + ' registros de la copia del ' + esc(String(o.fecha || '').slice(0, 10)) + '? Lo que esté en la copia reemplaza lo que hay en este equipo.', () => { LDB.importAll(o.docs); toast('Copia restaurada', 'ok'); }, 'Restaurar');
   } catch (e) { toast('No pude leer la copia: ' + e.message, 'bad'); }
   el.value = '';
+};
+
+ACT.libProbar = async () => {
+  const el = $('#libEstado'); if (el) el.textContent = 'Revisando…';
+  const r = await estadoLibs();
+  if (el) el.innerHTML = Object.keys(r).map(k => (r[k] ? '✓ ' : '✗ falta ') + k).join(' · ') + (Object.values(r).every(Boolean) ? ' · todo en orden' : ' · sube la carpeta lib a GitHub');
 };

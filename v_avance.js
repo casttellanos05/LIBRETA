@@ -233,8 +233,8 @@ function avReporte() {
 }
 CHG.repG = el => { S.ui.rep.g = el.value; render(); };
 CHG.repNom = el => { S.ui.rep.nom = el.checked; };
-ACT.repPDF = () => {
-  if (!window.jspdf) { toast('No cargó el generador de PDF; vuelve a abrir la app con internet', 'bad'); return; }
+ACT.repPDF = async () => {
+  if (!(await asegurarPDF())) return;
   const gid = S.ui.rep.g, g = S.grupos[gid], { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' });
   const navy = [15, 27, 51], gold = [36, 87, 214], ink = [50, 54, 66], m = 18, Wd = 215.9, w = Wd - 2 * m;
   let y = 20;
