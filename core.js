@@ -131,11 +131,19 @@ function subscribe() {
 
 /* ---------- render ---------- */
 let rT = null, pendingRender = false;
+function matActiva() {
+  const v = S.view, u = S.ui || {};
+  if (v === 'notas') { const n = u.n; return n && n.m ? n.m : null; }
+  if (v === 'avance') { const s = u.av || 'resumen'; return (s === 'resumen' || s === 'metricas') && u.met ? u.met.m : null; }
+  if (v === 'temario') return u.pm || 'ingles';
+  return null;
+}
 function render() {
   const v = VIEWS[S.view] || VIEWS.hoy;
+  const ma = (S.loaded.grupos ? matActiva() : null); document.body.dataset.mat = ma || '';
   const app = $('#app');
   const y = window.scrollY;
-  try { app.innerHTML = (S.loaded.grupos ? v() : '<div class="loading">Abriendo tu libreta…</div>'); }
+  try { app.innerHTML = (ma ? '<div class="matbar"><i></i>' + (ma === 'compu' ? 'COMPUTACIÓN' : 'INGLÉS') + '</div>' : '') + (S.loaded.grupos ? v() : '<div class="loading">Abriendo tu libreta…</div>'); }
   catch (e) { app.innerHTML = '<div class="card note bad">Ocurrió un error al mostrar esta pantalla: ' + esc(e.message) + '</div>'; console.error(e); }
   renderNav(); updSync();
   window.scrollTo(0, y);

@@ -211,6 +211,15 @@ nav#nav a.only-d { display: none; }
 }
 .side-brand, .side-sync { display: none; }
 header.top h1 { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* color por materia: inglés azul, computación lila */
+body[data-mat="compu"] { --accent: #6a42c4; --accent-soft: #eee8fb; --ok: #6a42c4; --ok-soft: #eee8fb; --gold: #6a42c4; }
+body::before { content: ""; position: fixed; inset: 0 0 auto 0; height: 4px; background: var(--accent); z-index: 60; }
+.matbar { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 700; letter-spacing: .14em; color: var(--accent); background: var(--accent-soft); padding: 7px 12px; border-radius: 10px; margin-bottom: 12px; }
+.matbar i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); display: inline-block; }
+body[data-mat="compu"] .seg button.on { background: #6a42c4; color: #fff; }
+body[data-mat="ingles"] .seg button.on { background: #2457d6; color: #fff; }
+.badge.b-ingles { background: #e6ecfc; color: #2457d6; }
+.badge.b-compu { background: #eee8fb; color: #6a42c4; }
 </style>
 </head>
 <body>

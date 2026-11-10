@@ -82,8 +82,8 @@ function claseCard(c, f) {
     acc = '<div class="row" style="margin-top:10px"><span class="small muted">' + esc(extra.replace(/^ · /, '')) + '</span><button class="btn sm ghost" data-act="deshacer|' + c.key + '">Deshacer</button></div>';
   }
   const bit = (esDada(c) && !esFut) ? bitacoraHTML(c) : '';
-  return '<div class="cls e-' + e + '"><div class="row" style="gap:14px;align-items:flex-start">' + hora +
-    '<div class="grow"><div class="row sp"><div><span class="gtitle">' + gNombre(c.grupoId) + '</span> <span class="badge">' + MAT_NOMBRE[c.materia] + '</span></div><span class="badge ' + ESTADO_CLS[e] + '">' + (e === 'pendiente' && f < hoy() ? 'Sin registrar' : ESTADO_TXT[e]) + '</span></div>' +
+  return '<div class="cls m-' + c.materia + ' e-' + e + '"><div class="row" style="gap:14px;align-items:flex-start">' + hora +
+    '<div class="grow"><div class="row sp"><div><span class="gtitle">' + gNombre(c.grupoId) + '</span> <span class="badge b-' + c.materia + '">' + MAT_NOMBRE[c.materia] + '</span></div><span class="badge ' + ESTADO_CLS[e] + '">' + (e === 'pendiente' && f < hoy() ? 'Sin registrar' : ESTADO_TXT[e]) + '</span></div>' +
     ((e === 'pendiente' || esDada(c)) ? plan : '') + acc + '</div></div>' + bit + '</div>';
 }
 
