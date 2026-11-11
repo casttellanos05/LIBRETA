@@ -252,7 +252,7 @@ function clasesDelDia(f) {
     const key = f + '_' + h.id, r = S.clases[key];
     out.push(Object.assign({ key, fecha: f, slotId: h.id, grupoId: h.grupoId, materia: h.materia, ini: h.ini, fin: h.fin, extra: h.extra || '', estado: 'pendiente' }, r || {}, { key }));
   });
-  Object.keys(S.clases).forEach(k => { const c = S.clases[k]; if (c.fecha === f && String(c.slotId).indexOf('x') === 0) out.push(Object.assign({ key: k, estado: 'pendiente' }, c, { key: k })); });
+  Object.keys(S.clases).forEach(k => { const c = S.clases[k]; if (c.fecha === f && String(c.slotId).indexOf('x') === 0 && !c.oculta) out.push(Object.assign({ key: k, estado: 'pendiente' }, c, { key: k })); });
   return out.sort((a, b) => (a.ini || '99').localeCompare(b.ini || '99'));
 }
 

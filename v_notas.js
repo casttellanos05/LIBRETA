@@ -178,27 +178,52 @@ function dibujaLista(doc, gid, p) {
   T('Promedio del grupo', M + nw + 2, y + 6.4, { b: 1, s: 9.5, c: TINK[p - 1] });
   mats.forEach((m, k) => { const v = vals[k].length ? vals[k].reduce((s, x) => s + x, 0) / vals[k].length : null; T(fix1(v), M + nw + nameW + cw * k + cw / 2, y + 6.4, { b: 1, s: 10.5, c: MC[m].tinta, a: 'center' }); });
   y += 9;
-  // gráfica discreta: cuántos alumnos tiene el grupo en cada calificación, Inglés vs Computación
+  // gráficas discretas: (1) cuántos alumnos hay en cada calificación (curva de distribución) y (2) cómo va el promedio por trimestre
   if (y + chartH + 2 > bottom + 10) { doc.addPage(); y = 18; }
-  y += 5;
-  const cats = ['5 o menos', '6', '7', '8', '9', '10'], cnt = vals.map(vs => { const c = [0, 0, 0, 0, 0, 0]; vs.forEach(v => { c[Math.max(0, Math.min(5, Math.floor(v + 1e-9) - 5))]++; }); return c; });
-  const mx = Math.max(1, ...cnt.map(c => Math.max(...c))), gx = M + nw, gw = 104, gh = chartH - 14, base0 = y + 5 + gh;
-  wide('DESEMPEÑO DEL GRUPO', M, y + 1.5, { s: 7, c: gris, sp: 0.7 });
-  mats.forEach((m, k) => { const lx = M + 52 + k * 30; fill(MC[m].fuerte); doc.rect(lx, y - 1.4, 3, 3, 'F'); T(MAT_NOMBRE[m], lx + 4.5, y + 1.2, { s: 7, c: gris }); });
-  const bw = (gw / cats.length) / (mats.length + 0.9);
-  cats.forEach((cat, ci) => {
-    const x0 = gx + ci * (gw / cats.length) + (gw / cats.length - bw * mats.length) / 2;
-    mats.forEach((m, k) => {
-      const c = cnt[k][ci], hh = c ? Math.max(0.8, gh * c / mx) : 0.4; fill(c ? MC[m].fuerte : linea); doc.rect(x0 + k * bw, base0 - hh, bw - 0.5, hh, 'F');
-      if (c) T(c, x0 + k * bw + (bw - 0.5) / 2, base0 - hh - 0.8, { s: 6.5, c: gris, a: 'center' });
-    });
-    T(cat, gx + ci * (gw / cats.length) + gw / cats.length / 2, base0 + 4, { s: 6.8, c: gris, a: 'center' });
+  y += 6;
+  const cnt = vals.map(vs => { const c = [0, 0, 0, 0, 0, 0]; vs.forEach(v => { c[Math.max(0, Math.min(5, Math.floor(v + 1e-9) - 5))]++; }); return c; });
+  const mx = Math.max(1, ...cnt.map(c => Math.max(...c))), gh = chartH - 17, base0 = y + 9 + gh;
+  const gx = M + 4, gw = 98, step = gw / 5, px = i => gx + 3 + i * (step - 1.2), py = (c, k) => base0 - (gh - 3) * c / mx;
+  const poly = (pts, color, op) => {
+    try { doc.setGState(new doc.GState({ opacity: op })); fill(color); const seg = []; for (let i = 1; i < pts.length; i++) seg.push([pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]]); doc.lines(seg, pts[0][0], pts[0][1], [1, 1], 'F', true); doc.setGState(new doc.GState({ opacity: 1 })); } catch (e) { }
+  };
+  wide('¿CÓMO ESTÁ EL GRUPO?', M, y + 1.5, { s: 7, c: gris, sp: 0.7 });
+  // leyenda con porcentaje de aprobados
+  let lx = M;
+  mats.forEach((m, k) => {
+    const t = vals[k].length, ap = t ? Math.round(100 * vals[k].filter(v => v >= S.cfg.esc.aprob).length / t) : null;
+    fill(MC[m].fuerte); doc.rect(lx, y + 2.4, 3, 3, 'F'); const lab = MAT_NOMBRE[m] + (ap == null ? '' : ' · ' + ap + '% aprobados'); T(lab, lx + 4.5, y + 5, { s: 7, c: gris }); lx += 4.5 + doc.setFontSize(7).getTextWidth(lab) + 6;
   });
-  draw(linea); doc.setLineWidth(0.2); doc.line(gx, base0, gx + gw, base0);
-  // al lado: aprobados por materia
-  const ax = M + nw + gw + 14;
-  T('Aprobados', ax, y + 6, { b: 1, s: 7, c: gris });
-  mats.forEach((m, k) => { const t = vals[k].length, ap = t ? Math.round(100 * vals[k].filter(v => v >= S.cfg.esc.aprob).length / t) : null; T(ap == null ? '—' : ap + '%', ax, y + 15 + k * 11, { b: 1, s: 15, c: MC[m].tinta }); T(MAT_NOMBRE[m] + (t ? ' · ' + t + '/' + n + ' evaluados' : ''), ax + 17, y + 14.4 + k * 11, { s: 7, c: gris }); });
+  draw(linea); doc.setLineWidth(0.15); doc.setLineDashPattern([0.6, 0.8], 0); doc.line(gx, base0 - (gh - 3) / 2, gx + gw, base0 - (gh - 3) / 2); doc.setLineDashPattern([], 0);
+  doc.setLineWidth(0.25); draw(gris); doc.line(gx, base0, gx + gw, base0);
+  // áreas, líneas y puntos (se dibuja primero la materia con menos alumnos para que ninguna tape a la otra)
+  mats.forEach((m, k) => { const pts = [[px(0), base0]].concat(cnt[k].map((c, i) => [px(i), py(c, k)])).concat([[px(5), base0]]); poly(pts, MC[m].fuerte, 0.12); });
+  mats.forEach((m, k) => {
+    draw(MC[m].fuerte); doc.setLineWidth(0.55);
+    for (let i = 1; i < 6; i++) doc.line(px(i - 1), py(cnt[k][i - 1], k), px(i), py(cnt[k][i], k));
+    cnt[k].forEach((c, i) => { fill(MC[m].fuerte); doc.circle(px(i), py(c, k), 0.95, 'F'); fill(blanco); doc.circle(px(i), py(c, k), 0.4, 'F'); });
+  });
+  /* números: el valor más alto va arriba del punto; el otro abajo si cabe, o a un lado si está pegado al eje */
+  mats.forEach((m, k) => cnt[k].forEach((c, i) => {
+    if (!c) return; const o = mats.length > 1 ? cnt[1 - k][i] : -1; let dx = 0, dy = -2;
+    if (o === c) dx = k ? 2.2 : -2.2; else if (o > c && py(c, k) < base0 - 5.5) dy = 3.6; else if (o > c) dx = k ? 2.6 : -2.6;
+    T(c, px(i) + dx, py(c, k) + dy, { s: 6.3, c: MC[m].tinta, a: 'center' });
+  }));
+  ['5 o menos', '6', '7', '8', '9', '10'].forEach((t, i) => T(t, px(i), base0 + 3.8, { s: 6.5, c: gris, a: 'center' }));
+  T('calificación', gx + gw, base0 + 7.4, { s: 6, c: gris, a: 'right' });
+  // tendencia por trimestre (promedio del grupo en cada materia)
+  const tx = M + 116, tw = W - 116 - 4, th = gh - 3, tb = base0, ty = v => tb - th * (Math.max(5, Math.min(10, v)) - 5) / 5, tpx = i => tx + 6 + i * ((tw - 12) / 2);
+  wide('PROMEDIO POR TRIMESTRE', tx - 2, y + 1.5, { s: 6.5, c: gris, sp: 0.5 });
+  draw(linea); doc.setLineWidth(0.15); doc.setLineDashPattern([0.6, 0.8], 0); doc.line(tx, ty(S.cfg.esc.aprob), tx + tw, ty(S.cfg.esc.aprob)); doc.setLineDashPattern([], 0);
+  doc.setLineWidth(0.25); draw(gris); doc.line(tx, tb, tx + tw, tb);
+  [1, 2, 3].forEach((q, i) => T(q + (q === 1 ? '.er' : q === 2 ? '.º' : '.er'), tpx(i), tb + 3.8, { s: 6.5, c: gris, a: 'center' }));
+  const prom = mats.map(m => [1, 2, 3].map(q => { const v = al.map(a => notaPeriodo(calDoc(a.id, m), q)).filter(x => x != null); return v.length ? v.reduce((s2, x) => s2 + x, 0) / v.length : null; }));
+  mats.forEach((m, k) => {
+    const pr = prom[k];
+    draw(MC[m].fuerte); doc.setLineWidth(0.55);
+    for (let i = 1; i < 3; i++) if (pr[i - 1] != null && pr[i] != null) doc.line(tpx(i - 1), ty(pr[i - 1]), tpx(i), ty(pr[i]));
+    pr.forEach((v, i) => { if (v == null) return; fill(MC[m].fuerte); doc.circle(tpx(i), ty(v), 0.95, 'F'); fill(blanco); doc.circle(tpx(i), ty(v), 0.4, 'F'); const o = mats.length > 1 ? prom[1 - k][i] : null; T(fix1(v), tpx(i), ty(v) + (o != null && o > v ? 3.8 : -2), { s: 6.3, b: 1, c: MC[m].tinta, a: 'center' }); });
+  });
 }
 function listaPDF(gids, p) {
   const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' });
