@@ -57,11 +57,50 @@ ACT.metGuardar = () => { guardarMetricas(false); render(); };
 const barra = (v, max, cls) => '<div class="bar ' + (cls || '') + '"><i style="width:' + (v == null ? 0 : Math.max(2, Math.min(100, v / max * 100))) + '%"></i></div>';
 
 /* ---------- vista ---------- */
+
+/* ---------- Resumen de evaluaciones: qué grupos ya están evaluados, por materia ---------- */
+/* El trimestre "activo" de un grupo es el más avanzado en el que algún alumno ya tiene calificación (mínimo el 1.º). */
+function evalEstado(gid, mat) {
+  const al = alumnosDe(gid), crit = critDe(mat), N = al.length, per = S.cfg.periodos;
+  const st = [1, 2, 3].map(p => {
+    let comp = 0, alguno = 0, parcial = 0;
+    const marks = al.map(a => {
+      const d = calDoc(a.id, mat), pp = d && d.p && d.p[p], k = pp ? crit.filter(c => num(pp[c.id])).length : 0;
+      if (k) alguno++; if (k && k < crit.length) parcial++; if (k >= crit.length && crit.length) { comp++; return 2; } return k ? 1 : 0;
+    });
+    return { p, comp, alguno, parcial, marks };
+  });
+  let act = 1; st.forEach(x => { if (x.alguno) act = x.p; });
+  const a = st[act - 1], falta = N - a.comp, previos = st.slice(0, act - 1).filter(x => x.comp < N).map(x => ({ p: x.p, falta: N - x.comp }));
+  return { N, act, nombre: per[act - 1] || ('Trimestre ' + act), comp: a.comp, falta, parcial: a.parcial, marks: a.marks, completo: N > 0 && falta === 0, anio: N > 0 && falta === 0 && act === 3, previos };
+}
+function evalCard(gid, mat, i, anim, el) {
+  const e = evalEstado(gid, mat), per = S.cfg.periodos;
+  const txt = !e.N ? 'sin alumnos' : e.anio ? 'año evaluado completo ✓' : e.completo ? 'evaluado ✓' : (e.falta === 1 ? 'falta 1 alumno' : 'faltan ' + e.falta + ' alumnos');
+  const prev = e.previos.map(x => '<div class="evw">' + esc((per[x.p - 1] || '').replace('trimestre', 'trim.')) + ': ' + (x.falta === 1 ? 'falta 1' : 'faltan ' + x.falta) + '</div>').join('');
+  return '<div class="evc ev-' + mat + (e.completo ? ' done' : '') + (anim ? ' anim' : '') + '" style="--d:' + (i * 70 - (el || 0)) + 'ms">' +
+    '<div class="evh"><b>' + gNombre(gid) + '</b><span>' + e.comp + '/' + e.N + '</span></div>' +
+    '<div class="evg">' + e.marks.map((m, k) => '<i class="ec f' + m + '" style="--i:' + k + '"></i>').join('') + '</div>' +
+    '<div class="evp">' + esc(e.nombre) + '</div><div class="evt' + (e.completo ? ' evok' : '') + '">' + txt + '</div>' + prev +
+    '<div class="evb"><i style="width:' + (e.N ? Math.round(100 * e.comp / e.N) : 0) + '%"></i></div></div>';
+}
+function evalResumen() {
+  /* La animación corre al entrar; si la pantalla se redibuja mientras corre, sigue donde iba (retraso negativo). */
+  if (!S.ui.evT) S.ui.evT = Date.now(); const el = Date.now() - S.ui.evT, anim = el < 3600;
+  let h = '<div class="card evr"><div class="row sp" style="margin-bottom:2px"><h3 style="margin:0">Evaluaciones por grupo</h3><span class="small muted">Cada cuadrito es un alumno · se llena al capturar su evaluación</span></div>';
+  ['ingles', 'compu'].forEach(m => {
+    const gs = ordenGrupos().filter(g => matsDe(g.id).indexOf(m) >= 0 && alumnosDe(g.id).length); if (!gs.length) return;
+    const ok = gs.filter(g => evalEstado(g.id, m).completo).length;
+    h += '<div class="evm ev-' + m + '"><i></i><b>' + MAT_NOMBRE[m] + '</b><span class="muted small">' + ok + ' de ' + gs.length + ' grupos con su trimestre completo</span></div><div class="evgrid">' + gs.map((g, i) => evalCard(g.id, m, i, anim, el)).join('') + '</div>';
+  });
+  return h + '</div>';
+}
+
 VIEWS.avance = function () {
   const sub = S.ui.av || 'resumen';
   let h = '<div class="row sp" style="margin-bottom:10px"><div><h2>Avance</h2><div class="muted">Dónde va cada grupo y cómo van los resultados.</div></div><div class="seg">' + [['resumen', 'Resumen'], ['grupos', 'Por grupo'], ['metricas', 'Métricas'], ['cambios', 'Cambios'], ['reporte', 'Reporte final']].map(x => '<button class="' + (sub === x[0] ? 'on' : '') + '" data-act="avSub|' + x[0] + '">' + x[1] + (x[0] === 'cambios' && pendientes().length ? ' (' + pendientes().length + ')' : '') + '</button>').join('') + '</div></div>';
   if (!Object.keys(S.grupos).length) return h + '<div class="card empty">Todavía no hay grupos.</div>';
-  return h + ({ resumen: avResumen, grupos: avGrupos, metricas: avMetricas, cambios: avCambios, reporte: avReporte }[sub])();
+  return h + evalResumen() + ({ resumen: avResumen, grupos: avGrupos, metricas: avMetricas, cambios: avCambios, reporte: avReporte }[sub])();
 };
 ACT.avSub = (el, s) => { S.ui.av = s; render(); };
 const pendientes = () => Object.values(S.cambios).filter(c => c.estado === 'pendiente');

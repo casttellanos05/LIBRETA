@@ -176,7 +176,7 @@ function renderNav() {
   $('#nav').innerHTML = TABS.map(t => '<a data-act="ir|' + t[0] + '" class="' + (S.view === t[0] || (t[0] === 'mas' && enMas) ? 'on ' : '') + (MOVIL.indexOf(t[0]) < 0 ? 'only-d ' : '') + (t[0] === 'mas' ? 'only-m' : '') + '">' + ico(t[0]) + '<span>' + t[1] + '</span></a>').join('');
 }
 VIEWS.mas = () => '<h2 style="margin-bottom:12px">Más</h2><div class="stack" style="gap:8px">' + [['grupos', 'Grupos y alumnos', 'Listas, importación desde Excel, quién paga'], ['avance', 'Avance', 'Dónde va cada grupo, métricas y reporte final'], ['temario', 'Plan académico', 'Carga y consulta el plan de Inglés y Computación'], ['ajustes', 'Ajustes', 'Escuela, evaluación, horario, sincronización y respaldo']].map(x => '<a class="card linkc" data-act="ir|' + x[0] + '">' + ico(x[0]) + '<div><b>' + x[1] + '</b><div class="small muted">' + x[2] + '</div></div></a>').join('') + '</div>';
-function ir(v) { S.view = v; try { history.replaceState(null, '', '#' + v); } catch (e) { } render(); window.scrollTo(0, 0); }
+function ir(v) { (S.ui || (S.ui = {})).evT = 0; S.view = v; try { history.replaceState(null, '', '#' + v); } catch (e) { } render(); window.scrollTo(0, 0); }
 ACT.ir = (el, v) => ir(v);
 
 /* ---------- avisos y diálogos ---------- */

@@ -9,6 +9,7 @@ VIEWS.grupos = function () {
   const gs = ordenGrupos(), sel = S.ui.gsel && S.grupos[S.ui.gsel] ? S.ui.gsel : (gs[0] && gs[0].id);
   S.ui.gsel = sel;
   let h = '<div class="row sp" style="margin-bottom:10px"><div><h2>Grupos y alumnos</h2><div class="muted">Tus listas, por grado y grupo. ' + Object.keys(S.alumnos).length + ' alumnos en total.</div></div><div class="row"><button class="btn" data-act="gNuevo">+ Nuevo grupo</button><button class="btn pri" data-act="impAbrir">Importar desde Excel</button></div></div>';
+  h += gBusCard();
   if (S.ui.gNuevo) {
     h += '<div class="card"><h3>Nuevo grupo</h3><div class="row"><label class="f">Grado<select id="ng">' + [1, 2, 3, 4, 5, 6].map(n => '<option>' + n + '</option>').join('') + '</select></label><label class="f">Grupo (letra)<input id="nl" maxlength="2" style="width:70px" value="A"></label><label class="f">Maestro(a) titular<input id="nm" placeholder="Nombre"></label><button class="btn pri" data-act="gCrear" style="align-self:flex-end">Crear</button></div></div>';
   }
@@ -26,7 +27,7 @@ VIEWS.grupos = function () {
   h += '<div class="row" style="margin:10px 0"><input id="nuevoAlu" placeholder="Nombre completo del alumno" class="grow" data-enter="aluAdd"><button class="btn pri" data-act="aluAdd">Agregar</button></div>';
   if (al.length) h += '<div class="scroll"><table><tr><th>#</th><th>Nombre completo</th><th style="text-align:center">¿Paga?</th><th></th></tr>' + al.map(a => {
     const ab = (S.ui.aluAb || {})[a.id];
-    return '<tr><td>' + a.num + '</td><td><input style="width:100%;min-width:200px" value="' + esc(a.nombre) + '" data-chg="aluNombre|' + a.id + '"></td><td style="text-align:center"><input type="checkbox" style="min-height:0;width:20px;height:20px" data-chg="aluPaga|' + a.id + '"' + (a.paga === false ? '' : ' checked') + '></td><td style="white-space:nowrap"><button class="btn sm' + (ab ? ' pri' : '') + '" data-act="aluAbre|' + a.id + '">Métricas ' + (ab ? '▾' : '▸') + '</button> <button class="btn sm ghost danger" data-act="aluDel|' + a.id + '">Quitar</button></td></tr>' +
+    return '<tr id="alu-' + a.id + '"><td>' + a.num + '</td><td><input style="width:100%;min-width:200px" value="' + esc(a.nombre) + '" data-chg="aluNombre|' + a.id + '"></td><td style="text-align:center"><input type="checkbox" style="min-height:0;width:20px;height:20px" data-chg="aluPaga|' + a.id + '"' + (a.paga === false ? '' : ' checked') + '></td><td style="white-space:nowrap"><button class="btn sm' + (ab ? ' pri' : '') + '" data-act="aluAbre|' + a.id + '">Métricas ' + (ab ? '▾' : '▸') + '</button> <button class="btn sm ghost danger" data-act="aluDel|' + a.id + '">Quitar</button></td></tr>' +
       (ab ? '<tr><td></td><td colspan="3" style="padding-bottom:14px">' + aluMetricasHTML(a) + '</td></tr>' : '');
   }).join('') + '</table></div>';
   else h += '<div class="empty">Este grupo no tiene alumnos. Agrégalos arriba, pega una lista o importa el Excel.</div>';
@@ -35,6 +36,36 @@ VIEWS.grupos = function () {
 };
 
 ACT.gSel = (el, id) => { S.ui.gsel = id; render(); };
+
+/* Buscador global: un alumno en toda la escuela */
+function gBusRes(q) {
+  const w = normTxt(q).split(/\s+/).filter(Boolean); if (!w.length) return null;
+  return Object.values(S.alumnos).filter(a => { const t = normTxt(a.nombre); return w.every(x => t.indexOf(x) >= 0); })
+    .sort((a, b) => { const ga = S.grupos[a.grupoId], gb = S.grupos[b.grupoId]; return ((ga ? ga.grado : 9) - (gb ? gb.grado : 9)) || String(ga && ga.letra).localeCompare(gb && gb.letra) || (a.num - b.num); });
+}
+function gBusLista(q) {
+  const r = gBusRes(q); if (r == null) return '';
+  if (!r.length) return '<div class="empty" style="padding:12px">Ningún alumno coincide con “' + esc(q.trim()) + '”.</div>';
+  const mostrar = r.slice(0, 30);
+  return '<div class="small muted" style="margin:2px 0 6px">' + r.length + (r.length === 1 ? ' alumno encontrado' : ' alumnos encontrados') + (r.length > 30 ? ' (se muestran los primeros 30; escribe más letras para afinar)' : '') + '</div>' +
+    '<div class="scroll"><table><tr><th>Grupo</th><th>#</th><th>Alumno</th><th></th></tr>' + mostrar.map(a =>
+      '<tr><td><b>' + gNombre(a.grupoId) + '</b></td><td>' + a.num + '</td><td>' + esc(a.nombre) + (a.paga === false ? ' <span class="muted small">· sin cobro</span>' : '') + '</td>' +
+      '<td style="white-space:nowrap"><button class="btn sm" data-act="gIr|' + a.id + '">Ver en su grupo</button> <button class="btn sm" data-act="gNotas|' + a.id + '">Calificaciones</button></td></tr>').join('') + '</table></div>';
+}
+function gBusCard() {
+  const q = S.ui.gq || '';
+  return '<div class="card"><div class="row" style="gap:8px;flex-wrap:nowrap;align-items:center"><input id="gq" type="search" autocomplete="off" placeholder="🔍 Buscar un alumno en toda la escuela (todos los grupos)…" value="' + esc(q) + '" data-inp="gBus" style="flex:1;min-width:0"><button class="btn sm" id="gqx" data-act="gBusLimpia" style="' + (q ? '' : 'display:none') + '">Limpiar</button></div><div id="gbus" style="margin-top:' + (q.trim() ? '10px' : '0') + '">' + gBusLista(q) + '</div></div>';
+}
+INP.gBus = el => { S.ui.gq = el.value; const b = $('#gbus'), x = $('#gqx'); if (b) { b.innerHTML = gBusLista(el.value); b.style.marginTop = el.value.trim() ? '10px' : '0'; } if (x) x.style.display = el.value ? '' : 'none'; };
+ACT.gBusLimpia = () => { S.ui.gq = ''; const i = $('#gq'); if (i) { i.value = ''; i.focus(); } INP.gBus({ value: '' }); };
+ACT.gIr = (el, aid) => {
+  const a = S.alumnos[aid]; if (!a) return; S.ui.gsel = a.grupoId; S.ui.gNuevo = false; render();
+  setTimeout(() => { const tr = document.getElementById('alu-' + aid); if (tr) { tr.scrollIntoView({ block: 'center', behavior: 'smooth' }); tr.classList.add('flash'); setTimeout(() => tr.classList.remove('flash'), 2600); } }, 60);
+};
+ACT.gNotas = (el, aid) => {
+  const a = S.alumnos[aid]; if (!a) return; const n = S.ui.n = S.ui.n || {}, ms = matsDe(a.grupoId);
+  n.g = a.grupoId; if (!n.m || ms.indexOf(n.m) < 0) n.m = ms[0]; if (!n.p) n.p = 1; n.q = a.nombre; ir('notas');
+};
 ACT.gNuevo = () => { S.ui.gNuevo = !S.ui.gNuevo; render(); };
 function nuevoGrupoDoc(grado, letra, maestro) {
   letra = String(letra || 'A').toUpperCase().trim().slice(0, 2);

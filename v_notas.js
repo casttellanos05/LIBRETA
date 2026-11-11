@@ -35,6 +35,7 @@ VIEWS.notas = function () {
       '<td><div class="row" style="flex-wrap:nowrap;gap:4px"><input class="go" id="obs-' + a.id + '" data-inp="gobs|' + a.id + '" value="' + esc(p.obs || '') + '" placeholder="Se escribe sola"><button class="btn sm" data-act="obsFrases|' + a.id + '" title="Frases">💬</button></div></td></tr>';
   });
   h += '<tr id="avgrow"></tr></table></div>' + promedioPie(n) + '</div>';
+  h += listaPanel(n);
   h += boletaPanel(n, al);
   return h;
 };
@@ -112,6 +113,81 @@ document.addEventListener('paste', e => {
   }));
   render();
 });
+
+
+/* ---------- Lista de calificaciones para maestros (PDF Carta, una hoja por grupo) ---------- */
+function listaPanel(n) {
+  const per = S.cfg.periodos[n.p - 1] || ('Trimestre ' + n.p);
+  return '<div class="card"><h3>Lista de calificaciones para maestros</h3><div class="muted" style="margin:0 0 10px">Una hoja con la calificación de cada alumno en Inglés y Computación, solo del trimestre elegido arriba (<b>' + esc(per) + '</b>). Sirve para que el maestro titular la copie o tenga un resumen de sus niños.</div>' +
+    '<div class="row"><button class="btn pri" data-act="listaPDF|g">PDF de ' + gNombre(n.g) + '</button><button class="btn" data-act="listaPDF|t">PDF de todos los grupos (una hoja por grupo)</button></div></div>';
+}
+function dibujaLista(doc, gid, p) {
+  const g = S.grupos[gid], al = alumnosDe(gid), mats = matsDe(gid), per = S.cfg.periodos[p - 1] || ('Trimestre ' + p);
+  const Wd = 215.9, M = 18, W = Wd - 2 * M, bottom = 256, cw = 34, nw = 12, nameW = W - nw - cw * mats.length;
+  const navy = [15, 27, 51], ink = [50, 54, 66], gris = [128, 134, 148], rojo = [192, 57, 43], linea = [222, 227, 237], blanco = [255, 255, 255];
+  const fill = c => doc.setFillColor(...c), draw = c => doc.setDrawColor(...c);
+  const T = (t, x, y, o) => { o = o || {}; doc.setFont('helvetica', o.b ? 'bold' : 'normal'); doc.setFontSize(o.s || 10); doc.setTextColor(...(o.c || ink)); doc.text(String(t), x, y, o.a ? { align: o.a } : undefined); };
+  const wide = (t, x, y, o) => { const sp = o.sp || 0.8; doc.setFont('helvetica', 'bold'); doc.setFontSize(o.s); const w = doc.getTextWidth(t) + (t.length - 1) * sp; const x0 = o.a === 'center' ? x - w / 2 : x; doc.setTextColor(...o.c); doc.text(t, x0, y, { charSpace: sp }); };
+  // cabecera de la primera hoja
+  fill(BAR); doc.rect(0, 0, Wd, 15, 'F');
+  T(S.cfg.escuela.toUpperCase(), Wd / 2, 9.4, { b: 1, s: 12, c: blanco, a: 'center' });
+  wide('CALIFICACIONES', M, 30, { s: 8.5, c: TINK[p - 1] });
+  T(gNombre(gid), M, 42, { b: 1, s: 26, c: navy });
+  // etiqueta del trimestre
+  const pw = Math.max(40, doc.setFontSize(10).getTextWidth(per.toUpperCase()) + 12);
+  fill(TCOL[p - 1]); doc.roundedRect(Wd - M - pw, 24, pw, 10, 2.4, 2.4, 'F'); T(per.toUpperCase(), Wd - M - pw / 2, 30.4, { b: 1, s: 10, c: TINK[p - 1], a: 'center' });
+  T('Ciclo ' + S.cfg.ciclo, Wd - M, 40, { s: 8.5, c: gris, a: 'right' });
+  T('Maestro(a) titular: ' + ((g && g.maestro) || '—'), M, 49, { s: 10, c: ink });
+  T(mats.map(m => MAT_NOMBRE[m] + ' · nivel ' + nivelDe(gid, m)).join('    '), Wd - M, 49, { s: 8.5, c: gris, a: 'right' });
+  let y = 55;
+  const encabezado = yy => {
+    fill(BAR); doc.rect(M, yy, W, 8, 'F');
+    T('#', M + nw / 2, yy + 5.4, { b: 1, s: 8.5, c: blanco, a: 'center' }); T('ALUMNO', M + nw + 2, yy + 5.4, { b: 1, s: 8.5, c: blanco });
+    mats.forEach((m, i) => T(MAT_NOMBRE[m].toUpperCase(), M + nw + nameW + cw * i + cw / 2, yy + 5.4, { b: 1, s: 8.5, c: blanco, a: 'center' }));
+    return yy + 8;
+  };
+  y = encabezado(y);
+  const n = al.length, rh = Math.max(4.4, Math.min(8.2, (bottom - y - 9) / Math.max(1, n))), fs = rh < 5 ? 8 : rh < 5.8 ? 8.5 : rh < 7 ? 9.5 : 10.5;
+  const sumas = mats.map(() => []);
+  al.forEach((a, i) => {
+    if (y + rh > bottom) {
+      doc.addPage(); fill(BAR); doc.rect(0, 0, Wd, 10, 'F'); T(S.cfg.escuela.toUpperCase() + ' · ' + gNombre(gid) + ' · ' + per, Wd / 2, 6.6, { b: 1, s: 8.5, c: blanco, a: 'center' });
+      y = encabezado(16);
+    }
+    if (i % 2 === 0) { fill(TTINT[p - 1]); doc.rect(M, y, W, rh, 'F'); }
+    draw(linea); doc.setLineWidth(0.15); doc.line(M, y + rh, M + W, y + rh);
+    const base = y + rh / 2 + fs * 0.12;
+    T(a.num, M + nw / 2, base, { s: fs - 1.5, c: gris, a: 'center' });
+    let f = fs; doc.setFont('helvetica', 'normal'); doc.setFontSize(f); while (f > 6.5 && doc.getTextWidth(a.nombre) > nameW - 4) { f -= 0.5; doc.setFontSize(f); }
+    T(a.nombre, M + nw + 2, base, { s: f, c: ink });
+    mats.forEach((m, k) => {
+      const v = notaPeriodo(calDoc(a.id, m), p), cx = M + nw + nameW + cw * k + cw / 2;
+      if (v == null) T('—', cx, base, { s: fs, c: gris, a: 'center' });
+      else { sumas[k].push(v); T(fmtNota(v), cx, base, { b: 1, s: fs + 0.5, c: v < S.cfg.esc.aprob ? rojo : TINK[p - 1], a: 'center' }); }
+    });
+    y += rh;
+  });
+  // promedio del grupo
+  if (y + 9 > bottom + 8) { doc.addPage(); y = 16; }
+  fill(TCOL[p - 1]); doc.rect(M, y + 1, W, 8, 'F');
+  T('Promedio del grupo', M + nw + 2, y + 6.4, { b: 1, s: 9.5, c: TINK[p - 1] });
+  mats.forEach((m, k) => { const v = sumas[k].length ? sumas[k].reduce((s, x) => s + x, 0) / sumas[k].length : null; T(fix1(v), M + nw + nameW + cw * k + cw / 2, y + 6.4, { b: 1, s: 10.5, c: TINK[p - 1], a: 'center' }); });
+  T('Con calificación: ' + mats.map((m, k) => MAT_NOMBRE[m] + ' ' + sumas[k].length + '/' + n).join('   '), M, y + 15, { s: 8, c: gris });
+  T('En rojo: calificación menor a ' + S.cfg.esc.aprob + '.', Wd - M, y + 15, { s: 8, c: gris, a: 'right' });
+}
+function listaPDF(gids, p) {
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' });
+  gids.forEach((gid, i) => { if (i > 0) doc.addPage(); dibujaLista(doc, gid, p); });
+  const N = doc.getNumberOfPages(), f = hoy().split('-').reverse().join('/');
+  for (let i = 1; i <= N; i++) { doc.setPage(i); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(128, 134, 148); doc.text('Libreta de Clases · generado el ' + f, 18, 272); doc.text('Página ' + i + ' de ' + N, 197.9, 272, { align: 'right' }); }
+  return doc.output('arraybuffer');
+}
+ACT.listaPDF = async (el, q) => {
+  if (!(await asegurarPDF())) return; const n = S.ui.n;
+  const gids = q === 'g' ? [n.g] : ordenGrupos().filter(g => alumnosDe(g.id).length).map(g => g.id);
+  if (!gids.length) { toast('No hay alumnos para imprimir', 'bad'); return; }
+  descargar('calificaciones-' + (q === 'g' ? n.g : 'todos-los-grupos') + '-' + n.p + 'trim.pdf', listaPDF(gids, n.p));
+};
 
 /* ---------- Boletas: una hoja Carta por alumno, con ambas materias ---------- */
 function boletaDatos(a) {
