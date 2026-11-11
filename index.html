@@ -277,6 +277,67 @@ body[data-mat="ingles"] .seg button.on { background: #2457d6; color: #fff; }
 
 .cel.mov, .cls.mov { background: #fbf3df !important; border-color: #ecd9a6 !important; }
 .cls.mov { border-left-color: #d9a21b !important; } .cel.mov .mk { color: #a8661a; }
+
+/* ===== v19: acabado premium — transparencias y movimiento suave ===== */
+.cnota { display: block; color: var(--bad); font-size: 11px; line-height: 1.25; margin-top: 2px; white-space: normal; word-break: break-word; }
+.honor tr.oro td { background: color-mix(in srgb, #e8b923 16%, transparent); } .honor tr.plata td { background: color-mix(in srgb, #9aa5b8 16%, transparent); } .honor tr.bronce td { background: color-mix(in srgb, #c27a3a 14%, transparent); }
+.honor td, .honor th { padding: 5px 8px; font-size: 13.5px; }
+:root { --glass: rgba(255,255,255,.66); --glass-line: rgba(255,255,255,.75); --glass-shadow: 0 1px 2px rgba(13,19,33,.04), 0 10px 32px rgba(15,27,51,.07); --ease: cubic-bezier(.2,.7,.2,1); }
+body { background: radial-gradient(900px 520px at 88% -8%, rgba(36,87,214,.13), transparent 62%), radial-gradient(760px 480px at -8% 12%, rgba(106,66,196,.10), transparent 60%), radial-gradient(800px 500px at 60% 108%, rgba(36,87,214,.08), transparent 60%), var(--bg); background-attachment: fixed; }
+.card { background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--glass-shadow); transition: box-shadow .25s var(--ease), transform .25s var(--ease), background .25s; }
+.card:not(.note):hover { box-shadow: 0 1px 2px rgba(13,19,33,.05), 0 16px 40px rgba(15,27,51,.10); }
+.cls { background: color-mix(in srgb, var(--card) 70%, transparent); border-color: color-mix(in srgb, var(--line) 70%, white); box-shadow: 0 1px 2px rgba(13,19,33,.04), 0 6px 20px rgba(15,27,51,.05); transition: box-shadow .25s var(--ease), transform .25s var(--ease); }
+.cls:hover { transform: translateY(-2px); box-shadow: 0 1px 2px rgba(13,19,33,.05), 0 14px 30px rgba(15,27,51,.10); }
+.cls.m-ingles:not(.e-cancelada) { background: linear-gradient(135deg, rgba(36,87,214,.075), rgba(255,255,255,.62)); }
+.cls.m-compu:not(.e-cancelada) { background: linear-gradient(135deg, rgba(106,66,196,.085), rgba(255,255,255,.62)); }
+.cel { transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s; }
+.cel:not(.hon):hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15,27,51,.12); }
+.cel.m-ingles:not(.e-cancelada):not(.e-sinreg) { background: rgba(36,87,214,.075); }
+.cel.m-compu:not(.e-cancelada):not(.e-sinreg) { background: rgba(106,66,196,.085); }
+.btn { transition: background .18s, border-color .18s, transform .18s var(--ease), box-shadow .18s, color .18s; background: rgba(255,255,255,.72); }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,27,51,.10); }
+.btn:active { transform: scale(.97); box-shadow: none; }
+.btn.pri { background: linear-gradient(180deg, #1c2d52, var(--navy)); box-shadow: 0 6px 16px rgba(15,27,51,.22); }
+.btn.ok { background: linear-gradient(180deg, #3a6be0, var(--accent)); box-shadow: 0 8px 20px rgba(36,87,214,.30); }
+.btn.ghost, .btn.quiet { background: transparent; box-shadow: none; }
+.btn.quiet:hover, .btn.ghost:hover { transform: none; box-shadow: none; }
+input, select, textarea { background: rgba(255,255,255,.7); transition: border-color .18s, box-shadow .18s, background .18s; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(36,87,214,.14); background: #fff; }
+.seg { background: rgba(236,239,244,.7); backdrop-filter: blur(8px); }
+.seg button { transition: background .2s var(--ease), color .2s, box-shadow .2s; }
+.seg button.on { background: rgba(255,255,255,.95); box-shadow: 0 2px 8px rgba(15,27,51,.12); }
+.badge { transition: transform .2s var(--ease); }
+header.top { background: rgba(255,255,255,.72); backdrop-filter: saturate(1.6) blur(18px); -webkit-backdrop-filter: saturate(1.6) blur(18px); border-bottom-color: rgba(226,229,236,.7); }
+nav#nav { background: rgba(255,255,255,.72); backdrop-filter: saturate(1.6) blur(20px); -webkit-backdrop-filter: saturate(1.6) blur(20px); border-top-color: rgba(226,229,236,.7); }
+nav#nav a { transition: color .2s, background .25s var(--ease), transform .2s var(--ease); }
+nav#nav a:active { transform: scale(.92); }
+nav#nav a.on svg { animation: navpop .45s var(--ease); }
+@media (min-width: 900px) { nav#nav { background: rgba(255,255,255,.6); backdrop-filter: saturate(1.6) blur(22px); -webkit-backdrop-filter: saturate(1.6) blur(22px); } nav#nav a.on { box-shadow: 0 4px 14px rgba(36,87,214,.14); } }
+#modal { background: rgba(10,16,32,.38); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+#modal.on { animation: fadein .22s ease both; }
+#modal .box { background: rgba(255,255,255,.86); backdrop-filter: blur(22px) saturate(1.5); -webkit-backdrop-filter: blur(22px) saturate(1.5); border: 1px solid rgba(255,255,255,.8); box-shadow: 0 24px 70px rgba(10,16,32,.28); }
+#modal.on .box { animation: boxin .32s var(--ease) both; }
+#toast div { background: rgba(13,19,33,.82); color: #fff; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 34px rgba(10,16,32,.28); animation: toastin .38s var(--ease) both; }
+.bar > i { transform-origin: left; }
+#app.enter .bar > i { animation: evbar .9s var(--ease) both .15s; }
+#app.enter > * { animation: rise .55s var(--ease) both; }
+#app.enter > *:nth-child(2) { animation-delay: .04s; } #app.enter > *:nth-child(3) { animation-delay: .08s; } #app.enter > *:nth-child(4) { animation-delay: .12s; } #app.enter > *:nth-child(5) { animation-delay: .16s; } #app.enter > *:nth-child(6) { animation-delay: .20s; } #app.enter > *:nth-child(7) { animation-delay: .24s; } #app.enter > *:nth-child(n+8) { animation-delay: .28s; }
+#app.enter .clsg > *, #app.enter .semd, #app.enter .grid2 > * { animation: rise .55s var(--ease) both; }
+#app.enter .clsg > *:nth-child(2), #app.enter .semd:nth-child(2) { animation-delay: .06s; } #app.enter .clsg > *:nth-child(3), #app.enter .semd:nth-child(3) { animation-delay: .12s; } #app.enter .clsg > *:nth-child(4), #app.enter .semd:nth-child(4) { animation-delay: .18s; } #app.enter .clsg > *:nth-child(n+5), #app.enter .semd:nth-child(n+5) { animation-delay: .24s; }
+.kpi b { transition: transform .3s var(--ease); } .kpi:hover b { transform: scale(1.06); }
+.sync { backdrop-filter: blur(8px); transition: background .3s, color .3s; }
+.mark { box-shadow: inset -4px 0 0 var(--accent), 0 6px 16px rgba(15,27,51,.22); }
+tr.arow, table tr { transition: background .15s; } table tr:hover td { background: rgba(36,87,214,.035); }
+details > summary { transition: color .2s; cursor: pointer; } details[open] > *:not(summary) { animation: fadein .3s ease both; }
+.loading { animation: pulse 1.4s ease-in-out infinite; }
+.updc { background: linear-gradient(135deg, rgba(36,87,214,.09), rgba(255,255,255,.66)); }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes boxin { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes toastin { from { opacity: 0; transform: translateY(14px) scale(.95); } to { opacity: 1; transform: none; } }
+@keyframes navpop { 0% { transform: scale(.8); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes pulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; } }
 </style>
 </head>
 <body>
@@ -292,8 +353,6 @@ body[data-mat="ingles"] .seg button.on { background: #2457d6; color: #fff; }
 <main class="wrap" id="app"><div class="loading">Abriendo la libreta…</div></main>
 <div id="modal"></div>
 <div id="toast"></div>
-<script src="lib/xlsx.full.min.js"></script>
-<script src="lib/jspdf.umd.min.js"></script>
 <script src="data.js"></script>
 <script src="seed.js"></script>
 <script src="store.js"></script>

@@ -25,6 +25,23 @@ function saldoHasta(mae, fin) { // cobrado − pagado hasta una fecha (positivo 
   const pagado = Object.values(S.pagos).filter(p => p.maestro === mae && p.fecha <= fin).reduce((s, p) => s + (p.monto || 0), 0);
   return cobrado - pagado;
 }
+/* Cada cobro se aplica a las clases ya impartidas, de la más antigua a la más reciente.
+   Lo que sobra (todavía no hay clases dadas que cubra) es un adelanto; en cuanto se dan las clases, queda pagado. */
+function adelantoPagos() {
+  const res = {};
+  maestros().forEach(mae => {
+    const gs = Object.values(S.grupos).filter(g => maestroDe(g.id) === mae).map(g => g.id);
+    let cobrado = Object.values(S.clases).filter(c => esDada(c) && gs.indexOf(gEf(c)) >= 0).reduce((s, c) => s + tarifaDe(c), 0), acum = 0;
+    Object.values(S.pagos).filter(p => p.maestro === mae).sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.ts || 0) - (b.ts || 0)).forEach(p => {
+      const m = p.monto || 0, aplicado = Math.max(0, Math.min(m, cobrado - acum)); acum += m; res[p.id] = { aplicado, adelanto: m - aplicado };
+    });
+  });
+  return res;
+}
+function estadoPago(p) {
+  const r = adelantoPagos()[p.id]; if (!r) return '';
+  return r.adelanto <= 0.005 ? '<span class="badge ok">Pagada</span>' : r.aplicado <= 0.005 ? '<span class="badge fav">Adelanto</span>' : '<span class="badge fav">Adelanto ' + money(r.adelanto) + '</span>';
+}
 const saldoMaestro = mae => { const sd = saldoHasta(mae, '9999-12-31'); return { saldo: sd }; };
 const saldoTxt = v => v < -0.005 ? '<span class="badge fav">A favor ' + money(-v) + '</span>' : '<b>' + money(v) + '</b>';
 
@@ -37,9 +54,9 @@ VIEWS.cobros = function () {
   if (!t) h += '<div class="card note warn row sp"><span>Falta el <b>monto por niño</b> (por clase) para calcular los cobros.</span><span class="row"><input id="tarifaIn" inputmode="decimal" placeholder="Ej. 10" style="width:110px"><button class="btn pri sm" data-act="tarifaOk">Guardar</button></span></div>';
   // 1) registrar un cobro
   h += '<div class="card"><h3>Registrar un cobro</h3><div class="row"><label class="f">Maestro(a)<select id="pm" data-chg="cobPrev">' + maes.map(x => '<option>' + esc(x) + '</option>').join('') + '</select></label><label class="f">Monto<input id="pmo" inputmode="decimal" style="width:110px" placeholder="0" data-inp="cobPrev"></label><label class="f">Fecha<input type="date" id="pf" value="' + hoy() + '"></label><label class="f grow">Nota<input id="pn" placeholder="Opcional"></label></div>' +
-    '<div class="row sp" style="margin-top:10px"><label class="row small" style="flex-wrap:nowrap"><input type="checkbox" id="padv"> Es un cobro adelantado (clases que todavía no doy)</label><button class="btn pri" data-act="pagoOk">Guardar cobro</button></div>' +
+    '<div class="row sp" style="margin-top:10px"><span class="small muted">Si el maestro no debe clases, se registra solo como adelanto.</span><button class="btn pri" data-act="pagoOk">Guardar cobro</button></div>' +
     '<div id="pprev" class="small muted" style="margin-top:6px"></div>' +
-    '<details style="margin-top:10px"><summary>Cobros recientes</summary>' + (Object.keys(S.pagos).length ? '<div class="scroll"><table>' + Object.values(S.pagos).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.ts || 0) - (a.ts || 0)).slice(0, 15).map(p => '<tr><td>' + fmtCorto(p.fecha) + '</td><td>' + esc(p.maestro) + '</td><td class="n"><b>' + money(p.monto) + '</b></td><td>' + (p.adv ? '<span class="badge fav">Adelanto</span>' : '') + '</td><td class="muted small">' + esc(p.nota || '') + '</td><td><button class="btn sm ghost danger" data-act="pagoDel|' + p.id + '">Quitar</button></td></tr>').join('') + '</table></div>' : '<div class="muted small" style="margin-top:6px">Aún no hay cobros registrados.</div>') + '</details></div>';
+    '<details style="margin-top:10px"><summary>Cobros recientes</summary>' + (Object.keys(S.pagos).length ? '<div class="scroll"><table>' + Object.values(S.pagos).sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.ts || 0) - (a.ts || 0)).slice(0, 15).map(p => '<tr><td>' + fmtCorto(p.fecha) + '</td><td>' + esc(p.maestro) + '</td><td class="n"><b>' + money(p.monto) + '</b></td><td>' + estadoPago(p) + '</td><td class="muted small">' + esc(p.nota || '') + '</td><td><button class="btn sm ghost danger" data-act="pagoDel|' + p.id + '">Quitar</button></td></tr>').join('') + '</table></div>' : '<div class="muted small" style="margin-top:6px">Aún no hay cobros registrados.</div>') + '</details></div>';
   // 2) por maestro
   let tA = 0, tS = 0, tT = 0;
   const filasM = maes.map(mae => {
@@ -72,7 +89,7 @@ ACT.tarifaOk = () => { const v = parseNota($('#tarifaIn').value); if (v === '' |
 ACT.pagoOk = () => {
   const v = parseNota($('#pmo').value); if (v === '' || v === undefined || v <= 0) { toast('Escribe el monto recibido', 'bad'); return; }
   const id = 'p' + Date.now().toString(36);
-  save('pagos', id, { id, maestro: $('#pm').value, monto: v, fecha: $('#pf').value || hoy(), nota: $('#pn').value.trim(), adv: $('#padv').checked, ts: Date.now() }); toast('Cobro guardado', 'ok'); render();
+  save('pagos', id, { id, maestro: $('#pm').value, monto: v, fecha: $('#pf').value || hoy(), nota: $('#pn').value.trim(), ts: Date.now() }); toast('Cobro guardado', 'ok'); render();
 };
 ACT.pagoDel = (el, id) => ask('¿Quitar este cobro?', () => { del('pagos', id); render(); }, 'Quitar');
 ACT.msg = (el, mae) => {

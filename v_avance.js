@@ -100,7 +100,7 @@ VIEWS.avance = function () {
   const sub = S.ui.av || 'resumen';
   let h = '<div class="row sp" style="margin-bottom:10px"><div><h2>Avance</h2><div class="muted">Dónde va cada grupo y cómo van los resultados.</div></div><div class="seg">' + [['resumen', 'Resumen'], ['grupos', 'Por grupo'], ['metricas', 'Métricas'], ['cambios', 'Cambios'], ['reporte', 'Reporte final']].map(x => '<button class="' + (sub === x[0] ? 'on' : '') + '" data-act="avSub|' + x[0] + '">' + x[1] + (x[0] === 'cambios' && pendientes().length ? ' (' + pendientes().length + ')' : '') + '</button>').join('') + '</div></div>';
   if (!Object.keys(S.grupos).length) return h + '<div class="card empty">Todavía no hay grupos.</div>';
-  return h + evalResumen() + ({ resumen: avResumen, grupos: avGrupos, metricas: avMetricas, cambios: avCambios, reporte: avReporte }[sub])();
+  return h + (sub === 'resumen' ? evalResumen() : '') + ({ resumen: avResumen, grupos: avGrupos, metricas: avMetricas, cambios: avCambios, reporte: avReporte }[sub])();
 };
 ACT.avSub = (el, s) => { S.ui.av = s; render(); };
 const pendientes = () => Object.values(S.cambios).filter(c => c.estado === 'pendiente');
@@ -197,6 +197,25 @@ function avResumen() {
   return h;
 }
 
+/* Cuadro de honor: mejores promedios (se permiten empates: si varios igualan el último lugar, todos entran). */
+function topN(lista, n) {
+  const L = lista.slice().sort((a, b) => b.fin - a.fin || a.a.nombre.localeCompare(b.a.nombre, 'es'));
+  L.forEach(x => { x.lugar = 1 + L.filter(y => y.fin > x.fin).length; });
+  return L.filter(x => x.lugar <= n);
+}
+function honorTabla(L) {
+  return '<table class="honor"><tr><th class="n">#</th><th>Alumno</th><th>Grupo</th><th class="n">Promedio</th></tr>' + L.map(x => '<tr class="' + (x.lugar === 1 ? 'oro' : x.lugar === 2 ? 'plata' : x.lugar === 3 ? 'bronce' : '') + '"><td class="n"><b>' + x.lugar + '</b></td><td>' + esc(x.a.nombre) + '</td><td>' + gNombre(x.gid) + '</td><td class="n"><b>' + fix1(x.fin) + '</b></td></tr>').join('') + '</table>';
+}
+function honorCard(gs, mat, per) {
+  const todos = []; gs.forEach(g => notasGrupo(g.id, mat, per).forEach(x => { if (x.fin != null) todos.push({ a: x.a, fin: x.fin, gid: g.id, grado: g.grado }); }));
+  if (!todos.length) return '';
+  const porGrado = [1, 2, 3, 4, 5, 6].map(gr => ({ gr, L: topN(todos.filter(x => x.grado === gr), 10) })).filter(x => x.L.length);
+  const porGrupo = gs.map(g => ({ g, L: topN(todos.filter(x => x.gid === g.id), 3) })).filter(x => x.L.length);
+  return '<div class="card honorc"><div class="row sp"><h3 style="margin:0">🏆 Cuadro de honor · ' + MAT_NOMBRE[mat] + '</h3><span class="small muted">Si hay empate en un lugar, entran todos</span></div>' +
+    '<h4 style="margin:12px 0 4px">Los 10 mejores promedios de la escuela</h4><div class="scroll">' + honorTabla(topN(todos, 10)) + '</div>' +
+    '<details style="margin-top:12px"><summary><b>Los 10 mejores por grado</b></summary><div class="grid2" style="margin-top:8px">' + porGrado.map(x => '<div><h4 style="margin:6px 0 4px">' + x.gr + '.º grado</h4><div class="scroll">' + honorTabla(x.L) + '</div></div>').join('') + '</div></details>' +
+    '<details style="margin-top:8px"><summary><b>Los 3 mejores por grupo</b></summary><div class="grid2" style="margin-top:8px">' + porGrupo.map(x => '<div><h4 style="margin:6px 0 4px">' + gNombre(x.g.id) + '</h4><div class="scroll">' + honorTabla(x.L) + '</div></div>').join('') + '</div></details></div>';
+}
 function avMetricas() {
   const n = S.ui.met = S.ui.met || { m: 'ingles', p: 1 };
   const per = n.p === 'anual' ? 'anual' : Number(n.p), crit = critDe(n.m), gs = ordenGrupos().filter(g => matsDe(g.id).indexOf(n.m) >= 0);
@@ -208,6 +227,7 @@ function avMetricas() {
   if (!stats.some(x => x.s.conNota)) return h + '<div class="card empty">Aún no hay calificaciones de ' + MAT_NOMBRE[n.m] + ' en este periodo.</div>';
   h += '<div class="card"><h3>Comparativo por grupo</h3><div class="scroll"><table><tr><th>Grupo</th><th>Nivel</th><th class="n">Alumnos</th>' + crit.map(c => '<th class="n">' + esc(c.nombre.replace('Examen ', 'Ex. ').replace(' en clase', '')) + '</th>').join('') + '<th class="n">Final</th><th class="n">Aprob.</th><th style="min-width:110px"></th></tr>' +
     stats.map(x => '<tr><td><b>' + gNombre(x.g.id) + '</b></td><td>' + x.g.nivel + '</td><td class="n">' + x.s.conNota + '/' + x.s.n + '</td>' + crit.map(c => '<td class="n">' + fix1(x.s[c.id]) + '</td>').join('') + '<td class="n"><b>' + fix1(x.s.final) + '</b></td><td class="n">' + (x.s.aprob == null ? '—' : x.s.aprob + '%') + '</td><td>' + barra(x.s.final, 10) + '</td></tr>').join('') + '</table></div></div>';
+  h += honorCard(gs, n.m, per);
   // paralelos
   const par = [];
   [1, 2, 3, 4, 5, 6].forEach(gr => { const a = stats.find(x => x.g.grado === gr && x.g.letra === 'A'), b = stats.find(x => x.g.grado === gr && x.g.letra === 'B'); if (a && b && a.s.final != null && b.s.final != null) par.push([gr, a, b]); });

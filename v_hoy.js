@@ -37,7 +37,7 @@ INP.bitnota = (el, id) => { const b = bitBase(id); b.nota = el.value; b.ts = Dat
 
 function diaFormHTML(f) {
   const pend = clasesDelDia(f).filter(c => c.estado === 'pendiente' && String(c.slotId).indexOf('x') !== 0).length;
-  return '<div class="card note warn"><div class="row"><label class="f">Motivo<select id="dmot"><option value="escuela">La escuela canceló (no se cobra)</option><option value="maestro">Yo cancelé</option><option value="otro">Otro</option></select></label><label class="row small"><input type="checkbox" id="drep"> Reponer las clases</label></div><div class="row" style="margin-top:8px"><button class="btn danger" data-act="diaOk">Cancelar las ' + pend + ' clases del ' + fmtLargo(f).toLowerCase() + '</button><button class="btn ghost" data-act="diaX">Volver</button></div></div>';
+  return '<div class="card note warn"><div class="row"><label class="f">Motivo<select id="dmot"><option value="escuela">La escuela canceló (no se cobra)</option><option value="maestro">Yo cancelé</option><option value="otro">Otro</option></select></label><label class="row small"><input type="checkbox" id="drep"> Reponer las clases</label></div><label class="f" style="margin-top:8px">Cancelado por:<input id="dnota" placeholder="Escribe el motivo (ej. suspensión de clases, evento escolar…)" maxlength="140"></label><div class="row" style="margin-top:8px"><button class="btn danger" data-act="diaOk">Cancelar las ' + pend + ' clases del ' + fmtLargo(f).toLowerCase() + '</button><button class="btn ghost" data-act="diaX">Volver</button></div></div>';
 }
 function extraFormHTML() {
   return '<div class="card"><div class="row"><label class="f">Grupo<select id="xg">' + ordenGrupos().map(g => '<option value="' + g.id + '">' + gNombre(g.id) + '</option>').join('') + '</select></label><label class="f">Materia<select id="xm"><option value="ingles">Inglés</option><option value="compu">Computación</option></select></label><label class="f">Hora (opcional)<input type="time" id="xi"></label><button class="btn pri" data-act="extraOk" style="align-self:flex-end">Agregar</button><button class="btn ghost" data-act="extraForm" style="align-self:flex-end">Cerrar</button></div></div>';
@@ -66,7 +66,7 @@ function claseCard(c, f) {
     if (S.ui.cancel === c.key) {
       acc = '<div class="note warn" style="margin-top:10px"><div class="row"><label class="f">Motivo<select id="mot">' +
         '<option value="escuela">La escuela canceló (no se cobra)</option><option value="maestro">Yo la cancelé</option><option value="otro">Otro motivo</option></select></label>' +
-        '<label class="row small"><input type="checkbox" id="rep"> Hay que reponerla</label></div><div class="row" style="margin-top:8px"><button class="btn danger" data-act="cancelok|' + c.key + '">Cancelar esta clase</button><button class="btn ghost" data-act="cancelx">Volver</button></div></div>';
+        '<label class="row small"><input type="checkbox" id="rep"> Hay que reponerla</label></div><label class="f" style="margin-top:8px">Cancelado por:<input id="cnota" placeholder="Escribe el motivo (ej. junta de consejo técnico, lluvia…)" maxlength="140"></label><div class="row" style="margin-top:8px"><button class="btn danger" data-act="cancelok|' + c.key + '">Cancelar esta clase</button><button class="btn ghost" data-act="cancelx">Volver</button></div></div>';
     } else if (S.ui.mover === c.key) {
       const mOpts = ['ingles', 'compu'].map(m => '<option value="' + m + '"' + (m === c.materia ? ' selected' : '') + '>' + MAT_NOMBRE[m] + '</option>').join('');
       const orig = c.intercambio || { grupoId: c.grupoId, materia: c.materia };
@@ -89,7 +89,7 @@ function claseCard(c, f) {
       acc = '<div style="margin-top:12px"><button class="btn ok big" data-act="marcar|' + c.key + '">✓ Completado</button><div class="row" style="margin-top:6px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button>' + (String(c.slotId).indexOf('x') !== 0 ? '<button class="btn sm quiet" data-act="mover|' + c.key + '">Cambiar clase</button>' : '') + (c.intercambio ? '<button class="btn sm quiet" data-act="intDesh|' + c.key + '">Deshacer intercambio</button>' : '') + '<button class="btn sm quiet" data-act="cambiar|' + c.key + '">Se la di a otro grupo</button>' + (c.evalPer ? '<button class="btn sm quiet" data-act="evalQuita|' + c.key + '">Quitar evaluación</button>' : '<button class="btn sm quiet" data-act="evalHoy|' + c.key + '">📝 Clase de evaluación</button>') + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div></div>';
     }
   } else {
-    const extra = mov ? ' · ' + (c.cambioA ? 'ahora: ' + gNombre(c.cambioA.grupoId) + ', ' + DIAS[dow(c.cambioA.fecha)].toLowerCase() + ' ' + pd(c.cambioA.fecha).getDate() + (c.cambioA.ini ? ' a las ' + hhmm(c.cambioA.ini) : '') : 'cambiada') : e === 'cancelada' ? ' · ' + ({ escuela: 'la escuela', maestro: 'yo', otro: 'otro motivo' }[c.motivo] || '') + (c.reponer && !c.repuesta ? ' · por reponer' : '') :
+    const extra = mov ? ' · ' + (c.cambioA ? 'ahora: ' + gNombre(c.cambioA.grupoId) + ', ' + DIAS[dow(c.cambioA.fecha)].toLowerCase() + ' ' + pd(c.cambioA.fecha).getDate() + (c.cambioA.ini ? ' a las ' + hhmm(c.cambioA.ini) : '') : 'cambiada') : e === 'cancelada' ? ' · Cancelado por: ' + (c.nota || ({ escuela: 'la escuela', maestro: 'yo', otro: 'otro motivo' }[c.motivo] || '')) + (c.reponer && !c.repuesta ? ' · por reponer' : '') :
       e === 'cambiada' ? ' · se la di a ' + gNombre(c.grupoReal) : '';
     acc = '<div class="row" style="margin-top:10px"><span class="small muted">' + esc(extra.replace(/^ · /, '')) + '</span><button class="btn sm ghost" data-act="deshacer|' + c.key + '">Deshacer</button></div>';
   }
@@ -174,7 +174,8 @@ ACT.intDesh = (el, key) => {
 };
 ACT.cancelok = (el, key) => {
   const c = recDeKey(key); if (!c) return;
-  const d = Object.assign(claseBase(c), { estado: 'cancelada', motivo: $('#mot').value, reponer: $('#rep').checked, repuesta: false, ts: Date.now() });
+  const nota = $('#cnota').value.trim(); if (!nota) { toast('Escribe por qué se cancela (Cancelado por:)', 'bad'); $('#cnota').focus(); return; }
+  const d = Object.assign(claseBase(c), { estado: 'cancelada', motivo: $('#mot').value, nota, reponer: $('#rep').checked, repuesta: false, ts: Date.now() });
   S.ui.cancel = null; save('clases', key, d); render();
 };
 ACT.cambiook = (el, key) => {
@@ -196,9 +197,9 @@ ACT.deshacer = (el, key) => {
 ACT.diaCancelar = () => { S.ui.diaForm = true; render(); };
 ACT.diaX = () => { S.ui.diaForm = false; render(); };
 ACT.diaOk = () => {
-  const mot = $('#dmot').value, f = S.fecha;
+  const mot = $('#dmot').value, f = S.fecha, nota = $('#dnota').value.trim(); if (!nota) { toast('Escribe por qué se cancela el día (Cancelado por:)', 'bad'); $('#dnota').focus(); return; }
   clasesDelDia(f).filter(c => c.estado === 'pendiente').forEach(c => {
-    save('clases', c.key, Object.assign(claseBase(c), { estado: 'cancelada', motivo: mot, reponer: $('#drep').checked, repuesta: false, dia: true, ts: Date.now() }));
+    save('clases', c.key, Object.assign(claseBase(c), { estado: 'cancelada', motivo: mot, nota, reponer: $('#drep').checked, repuesta: false, dia: true, ts: Date.now() }));
   });
   S.ui.diaForm = false; toast('Día cancelado', 'ok'); render();
 };
@@ -310,9 +311,9 @@ VIEWS.semana = function () {
         if (!recDone && !c.hon && (c.ini || '') >= '11:00') { h += '<div class="rec">Recreo</div>'; recDone = true; }
         if (c.hon) { h += '<div class="cel hon"><b>Honores</b><small>8:00 – 8:50</small></div>'; return; }
         const e = c.estado, past = f < t, sin = e === 'pendiente' && past;
-        h += '<div class="cel m-' + c.materia + ' e-' + (sin ? 'sinreg' : e) + (c.motivo === 'cambio' ? ' mov' : '') + (sel === c.key && !c.cont ? ' sel' : '') + (c.cont ? ' cont' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap;gap:4px"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: c.motivo === 'cambio' ? '↪' : '✕', cambiada: '⇄', pendiente: sin ? '!' : '○' }[e]) + '</span></div><span class="muted">' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cont ? ' (2.ª parte)' : '') + '</span><small>' + hhmm(c.ini) + ' – ' + hhmm(c.fin) + (e === 'cambiada' ? ' · a ' + gNombre(c.grupoReal) : '') + (e === 'cancelada' && c.motivo === 'cambio' && c.cambioA ? ' · pasó al ' + DIAS[dow(c.cambioA.fecha)].slice(0, 3).toLowerCase() + (c.cambioA.grupoId !== c.grupoId ? ' (' + gNombre(c.cambioA.grupoId) + ')' : '') : '') + (c.intercambio ? ' · intercambiada' : '') + (c.evalPer ? ' · evaluación' : '') + '</small></div>';
+        h += '<div class="cel m-' + c.materia + ' e-' + (sin ? 'sinreg' : e) + (c.motivo === 'cambio' ? ' mov' : '') + (sel === c.key && !c.cont ? ' sel' : '') + (c.cont ? ' cont' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap;gap:4px"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: c.motivo === 'cambio' ? '↪' : '✕', cambiada: '⇄', pendiente: sin ? '!' : '○' }[e]) + '</span></div><span class="muted">' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cont ? ' (2.ª parte)' : '') + '</span><small>' + hhmm(c.ini) + ' – ' + hhmm(c.fin) + (e === 'cambiada' ? ' · a ' + gNombre(c.grupoReal) : '') + (e === 'cancelada' && c.motivo === 'cambio' && c.cambioA ? ' · pasó al ' + DIAS[dow(c.cambioA.fecha)].slice(0, 3).toLowerCase() + (c.cambioA.grupoId !== c.grupoId ? ' (' + gNombre(c.cambioA.grupoId) + ')' : '') : '') + (c.intercambio ? ' · intercambiada' : '') + (c.evalPer ? ' · evaluación' : '') + '</small>' + (e === 'cancelada' && c.motivo !== 'cambio' && c.nota ? '<small class="cnota">Cancelado por: ' + esc(c.nota) + '</small>' : '') + '</div>';
       });
-      extras.forEach(c => { h += '<div class="cel m-' + c.materia + ' e-' + c.estado + (sel === c.key ? ' sel' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: '✕', cambiada: '⇄', pendiente: '○' }[c.estado]) + '</span></div><span class="muted">Extra · ' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cambio ? ' (cambio)' : c.repone ? ' (reposición)' : '') + '</span><small>' + (c.ini ? hhmm(c.ini) : 'sin hora') + '</small></div>'; });
+      extras.forEach(c => { h += '<div class="cel m-' + c.materia + ' e-' + c.estado + (sel === c.key ? ' sel' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: '✕', cambiada: '⇄', pendiente: '○' }[c.estado]) + '</span></div><span class="muted">Extra · ' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cambio ? ' (cambio)' : c.repone ? ' (reposición)' : '') + '</span><small>' + (c.ini ? hhmm(c.ini) : 'sin hora') + '</small>' + (c.estado === 'cancelada' && c.nota ? '<small class="cnota">Cancelado por: ' + esc(c.nota) + '</small>' : '') + '</div>'; });
       if (!cells.length && !extras.length) h += '<div class="small muted">Sin clases</div>';
       h += '</div>';
     }

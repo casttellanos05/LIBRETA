@@ -143,10 +143,12 @@ function render() {
   const ma = (S.loaded.grupos ? matActiva() : null); document.body.dataset.mat = ma || '';
   const app = $('#app');
   const y = window.scrollY;
+  if (!(S.ui && S.ui.entra)) app.classList.remove('enter');
   try { app.innerHTML = (ma ? '<div class="matbar"><i></i>' + (ma === 'compu' ? 'COMPUTACIÓN' : 'INGLÉS') + '</div>' : '') + (S.loaded.grupos ? v() : '<div class="loading">Abriendo tu libreta…</div>'); }
   catch (e) { app.innerHTML = '<div class="card note bad">Ocurrió un error al mostrar esta pantalla: ' + esc(e.message) + '</div>'; console.error(e); }
   renderNav(); updSync();
   window.scrollTo(0, y);
+  if (S.ui && S.ui.entra && S.loaded.grupos) { S.ui.entra = false; app.classList.remove('enter'); void app.offsetWidth; app.classList.add('enter'); clearTimeout(window._enT); window._enT = setTimeout(() => app.classList.remove('enter'), 1400); }
   $('#sub').textContent = S.cfg.escuela + ' · ' + S.cfg.ciclo; if ($('#sub2')) $('#sub2').textContent = S.cfg.ciclo;
 }
 function softRender() {
@@ -176,7 +178,7 @@ function renderNav() {
   $('#nav').innerHTML = TABS.map(t => '<a data-act="ir|' + t[0] + '" class="' + (S.view === t[0] || (t[0] === 'mas' && enMas) ? 'on ' : '') + (MOVIL.indexOf(t[0]) < 0 ? 'only-d ' : '') + (t[0] === 'mas' ? 'only-m' : '') + '">' + ico(t[0]) + '<span>' + t[1] + '</span></a>').join('');
 }
 VIEWS.mas = () => '<h2 style="margin-bottom:12px">Más</h2><div class="stack" style="gap:8px">' + [['grupos', 'Grupos y alumnos', 'Listas, importación desde Excel, quién paga'], ['avance', 'Avance', 'Dónde va cada grupo, métricas y reporte final'], ['temario', 'Plan académico', 'Carga y consulta el plan de Inglés y Computación'], ['ajustes', 'Ajustes', 'Escuela, evaluación, horario, sincronización y respaldo']].map(x => '<a class="card linkc" data-act="ir|' + x[0] + '">' + ico(x[0]) + '<div><b>' + x[1] + '</b><div class="small muted">' + x[2] + '</div></div></a>').join('') + '</div>';
-function ir(v) { (S.ui || (S.ui = {})).evT = 0; S.view = v; try { history.replaceState(null, '', '#' + v); } catch (e) { } render(); window.scrollTo(0, 0); }
+function ir(v) { (S.ui || (S.ui = {})).evT = 0; S.ui.entra = true; S.view = v; try { history.replaceState(null, '', '#' + v); } catch (e) { } render(); window.scrollTo(0, 0); }
 ACT.ir = (el, v) => ir(v);
 
 /* ---------- avisos y diálogos ---------- */
@@ -299,7 +301,19 @@ async function boot() {
   if (typeof SEED !== 'undefined' && !LDB.count()) { LDB.seed('config/main', SEED.config); SEED.grupos.forEach(g => LDB.seed('grupos/' + g.id, g)); SEED.horario.forEach(x => LDB.seed('horario/' + x.id, x)); }
   S.db = LDB; renderNav(); subscribe(); updSync(); render(); SYNC.run(false);
   PLAN.load().then(p => { S.plan = p; planReset(); softRender(); });
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  S.ui = S.ui || {}; S.ui.entra = true;
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    const habia = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => { window.SWREG = reg; reg.update().catch(() => { }); }).catch(() => { });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!habia || window._recargando) return; window._recargando = true;
+      try { sessionStorage.setItem('lb:actualizada', '1'); } catch (e) { }
+      const a = document.activeElement, escribiendo = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+      if (!escribiendo) { toast('Instalando la versión nueva…', 'ok'); setTimeout(() => location.reload(), 700); }
+      else { toast('Hay una versión nueva: se aplicará al terminar de escribir (o en Ajustes → Actualizar)', 'ok'); document.addEventListener('focusout', () => setTimeout(() => location.reload(), 400), { once: true }); }
+    });
+  }
+  try { if (sessionStorage.getItem('lb:actualizada')) { sessionStorage.removeItem('lb:actualizada'); setTimeout(() => toast('Libreta actualizada ✓', 'ok'), 600); } } catch (e) { }
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { }
 }
 

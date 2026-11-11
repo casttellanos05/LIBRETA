@@ -5,6 +5,12 @@ function cfgSet(fn) { const c = cl(S.cfg); fn(c); save('config', 'main', c, 500)
 VIEWS.ajustes = function () {
   const c = S.cfg;
   let h = '<h2 style="margin-bottom:10px">Ajustes</h2>';
+  const pend = Object.keys(LDB.out()).length, lastS0 = SYNC.last();
+  h += '<div class="card updc"><div class="row sp"><div><h3 style="margin:0 0 2px">Actualizar</h3><div class="small muted">Versión instalada: <b id="verIn">' + esc(S.ui.ver || '…') + '</b>' + (S.ui.updTxt ? ' · ' + esc(S.ui.updTxt) : '') + '</div>' +
+    '<div class="small muted">' + (SYNC.on() ? (pend ? '<b style="color:var(--warn)">' + pend + ' cambio' + (pend === 1 ? '' : 's') + ' por enviar</b>' : 'Todo enviado') + (lastS0 ? ' · última sincronización ' + new Date(lastS0).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '') : 'Sin sincronización: tus datos solo están en este equipo (configúrala más abajo).') + '</div></div>' +
+    '<button class="btn pri" data-act="actualizar"' + (S.ui.upd ? ' disabled' : '') + '>' + (S.ui.upd ? 'Actualizando…' : '⟳ Actualizar ahora') + '</button></div>' +
+    '<div class="small muted" style="margin-top:8px">Sube lo que capturaste, descarga lo más reciente de tus otros equipos y busca una versión nueva de la app. Necesita internet.</div></div>';
+  if (!S.ui.ver) verApp().then(v => { S.ui.ver = v; const e = $('#verIn'); if (e) e.textContent = v; });
   h += '<div class="card"><h3>Escuela y boleta</h3><div class="grid2"><label class="f">Escuela<input value="' + esc(c.escuela) + '" data-chg="cfg|escuela"></label><label class="f">Ciclo escolar<input value="' + esc(c.ciclo) + '" data-chg="cfg|ciclo"></label><label class="f">Tu nombre (aparece en la boleta)<input value="' + esc(c.maestro) + '" data-chg="cfg|maestro"></label><label class="f">Director(a)<input value="' + esc(c.director) + '" data-chg="cfg|director"></label></div></div>';
   h += '<div class="card"><h3>Cobro</h3><label class="f" style="max-width:260px">Monto por niño en cada clase<input inputmode="decimal" value="' + (c.tarifa || '') + '" placeholder="0" data-chg="cfgNum|tarifa"></label><div class="small muted" style="margin-top:6px">Cada clase se cobra por el número de niños que pagan en el grupo (monto × niños). Los niños sin cobro, como hermanos gemelos, se desmarcan en Grupos con la casilla “¿Paga?”. Cada clase guarda el monto y el número de niños al impartirla, así que cambiarlos después no altera lo ya cobrado.</div></div>';
   h += '<div class="card"><h3>Evaluación</h3><div class="small muted" style="margin:0 0 8px">Cada materia se pondera por separado. Escribe el nombre del criterio y su porcentaje (deben sumar 100).</div>';
@@ -30,6 +36,31 @@ VIEWS.ajustes = function () {
   h += '<div class="card flat"><h3>Componentes de la app</h3><p class="muted" style="margin:0 0 8px">Excel y PDF necesitan la carpeta <b>lib</b> publicada junto a la app. Si no se generan boletas o no se lee el Excel, toca Revisar.</p><button class="btn" data-act="libProbar">Revisar</button> <span id="libEstado" class="small"></span></div>';
   h += '<div class="card flat"><h3>Privacidad</h3><p class="muted" style="margin:0">Los datos de tus alumnos se guardan en este equipo y, si activas la sincronización, en tu propia hoja de Google. No se publican en internet junto con la app.</p></div>';
   return h;
+};
+async function verApp() {
+  try { const ks = (await caches.keys()).filter(k => k.indexOf('libreta-v') === 0).sort((a, b) => Number(a.slice(9)) - Number(b.slice(9))); return ks.length ? ks[ks.length - 1] : 'sin guardar'; } catch (e) { return 'desconocida'; }
+}
+ACT.actualizar = async () => {
+  if (S.ui.upd) return; S.ui.upd = true; S.ui.updTxt = ''; render();
+  const partes = [];
+  try {
+    if (!navigator.onLine) { partes.push('sin internet: tus cambios siguen guardados aquí y se enviarán al volver la conexión'); }
+    else {
+      if (SYNC.on()) {
+        SYNC.set('since', '0'); let ok = false;
+        for (let i = 0; i < 12; i++) { for (let w = 0; w < 40 && SYNC.busy(); w++) await new Promise(r => setTimeout(r, 250)); ok = await SYNC.run(false); if (!ok || !Object.keys(LDB.out()).length) break; }
+        partes.push(ok ? 'datos al día' : 'no se pudo sincronizar (' + (SYNC.err() || 'error') + ')');
+      } else partes.push('sincronización sin configurar');
+      const reg = window.SWREG || (navigator.serviceWorker && await navigator.serviceWorker.getRegistration());
+      if (reg) {
+        const antes = await verApp(); await reg.update().catch(() => { });
+        const w = reg.installing || reg.waiting;
+        if (w) { partes.push('instalando versión nueva'); S.ui.updTxt = partes.join(' · '); render(); await new Promise(r => { const t = setTimeout(r, 20000); w.addEventListener('statechange', () => { if (w.state === 'activated') { clearTimeout(t); r(); } }); if (w.state === 'activated') { clearTimeout(t); r(); } }); }
+        else { const v = await verApp(); partes.push(v === antes ? 'app al día (' + v + ')' : 'app actualizada'); }
+      }
+    }
+  } catch (e) { partes.push('error: ' + (e.message || e)); }
+  S.ui.upd = false; S.ui.ver = await verApp(); S.ui.updTxt = partes.join(' · '); toast(partes.join(' · '), /no se pudo|error/.test(partes.join()) ? 'bad' : 'ok'); render();
 };
 CHG.cfg = (el, k) => { cfgSet(c => { c[k] = el.value.trim(); }); render(); };
 CHG.cfgNum = (el, k) => { const v = parseNota(el.value); if (v === undefined || v < 0) { toast('Número no válido', 'bad'); render(); return; } cfgSet(c => { c[k] = v === '' ? 0 : v; }); render(); };
