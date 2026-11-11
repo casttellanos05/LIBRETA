@@ -123,38 +123,43 @@ function listaPanel(n) {
 }
 function dibujaLista(doc, gid, p) {
   const g = S.grupos[gid], al = alumnosDe(gid), mats = matsDe(gid), per = S.cfg.periodos[p - 1] || ('Trimestre ' + p);
-  const Wd = 215.9, M = 18, W = Wd - 2 * M, bottom = 256, cw = 34, nw = 12, nameW = W - nw - cw * mats.length;
+  const Wd = 215.9, M = 18, W = Wd - 2 * M, bottom = 258, cw = 34, nw = 12, nameW = W - nw - cw * mats.length, chartH = 36;
   const navy = [15, 27, 51], ink = [50, 54, 66], gris = [128, 134, 148], rojo = [192, 57, 43], linea = [222, 227, 237], blanco = [255, 255, 255];
+  /* color por materia: Inglés azul, Computación lila */
+  const MC = { ingles: { fuerte: [36, 87, 214], tinta: [38, 72, 140], tinte: [238, 243, 253], claro: [169, 189, 240] }, compu: { fuerte: [106, 66, 196], tinta: [92, 66, 146], tinte: [243, 238, 251], claro: [201, 185, 238] } };
   const fill = c => doc.setFillColor(...c), draw = c => doc.setDrawColor(...c);
   const T = (t, x, y, o) => { o = o || {}; doc.setFont('helvetica', o.b ? 'bold' : 'normal'); doc.setFontSize(o.s || 10); doc.setTextColor(...(o.c || ink)); doc.text(String(t), x, y, o.a ? { align: o.a } : undefined); };
-  const wide = (t, x, y, o) => { const sp = o.sp || 0.8; doc.setFont('helvetica', 'bold'); doc.setFontSize(o.s); const w = doc.getTextWidth(t) + (t.length - 1) * sp; const x0 = o.a === 'center' ? x - w / 2 : x; doc.setTextColor(...o.c); doc.text(t, x0, y, { charSpace: sp }); };
-  // cabecera de la primera hoja
+  const wide = (t, x, y, o) => { const sp = o.sp || 0.8; doc.setFont('helvetica', 'bold'); doc.setFontSize(o.s); doc.setTextColor(...o.c); doc.text(t, x, y, { charSpace: sp }); };
+  const titulo = 'REPORTE DE CALIFICACIONES · ' + mats.map(m => MAT_NOMBRE[m].toUpperCase()).join(' Y ');
+  // cabecera
   fill(BAR); doc.rect(0, 0, Wd, 15, 'F');
   T(S.cfg.escuela.toUpperCase(), Wd / 2, 9.4, { b: 1, s: 12, c: blanco, a: 'center' });
-  wide('CALIFICACIONES', M, 30, { s: 8.5, c: TINK[p - 1] });
-  T(gNombre(gid), M, 42, { b: 1, s: 26, c: navy });
-  // etiqueta del trimestre
+  wide(titulo, M, 28, { s: 8.2, c: TINK[p - 1] });
+  T(gNombre(gid), M, 41, { b: 1, s: 26, c: navy });
   const pw = Math.max(40, doc.setFontSize(10).getTextWidth(per.toUpperCase()) + 12);
-  fill(TCOL[p - 1]); doc.roundedRect(Wd - M - pw, 24, pw, 10, 2.4, 2.4, 'F'); T(per.toUpperCase(), Wd - M - pw / 2, 30.4, { b: 1, s: 10, c: TINK[p - 1], a: 'center' });
-  T('Ciclo ' + S.cfg.ciclo, Wd - M, 40, { s: 8.5, c: gris, a: 'right' });
-  T('Maestro(a) titular: ' + ((g && g.maestro) || '—'), M, 49, { s: 10, c: ink });
-  T(mats.map(m => MAT_NOMBRE[m] + ' · nivel ' + nivelDe(gid, m)).join('    '), Wd - M, 49, { s: 8.5, c: gris, a: 'right' });
-  let y = 55;
+  fill(TCOL[p - 1]); doc.roundedRect(Wd - M - pw, 33, pw, 10, 2.4, 2.4, 'F'); T(per.toUpperCase(), Wd - M - pw / 2, 39.4, { b: 1, s: 10, c: TINK[p - 1], a: 'center' });
+  T('Ciclo ' + S.cfg.ciclo, Wd - M, 24.4, { s: 8.5, c: gris, a: 'right' });
+  T('Maestro de ' + mats.map(m => MAT_NOMBRE[m]).join(' y ') + ': ', M, 48.6, { s: 9.5, c: gris });
+  const lw = doc.setFontSize(9.5).getTextWidth('Maestro de ' + mats.map(m => MAT_NOMBRE[m]).join(' y ') + ': ');
+  T(S.cfg.maestro || '—', M + lw, 48.6, { b: 1, s: 10, c: navy });
+  if (g && g.maestro) T('Maestro(a) titular: ' + g.maestro, Wd - M, 48.6, { s: 8.5, c: gris, a: 'right' });
+  let y = 54;
   const encabezado = yy => {
     fill(BAR); doc.rect(M, yy, W, 8, 'F');
     T('#', M + nw / 2, yy + 5.4, { b: 1, s: 8.5, c: blanco, a: 'center' }); T('ALUMNO', M + nw + 2, yy + 5.4, { b: 1, s: 8.5, c: blanco });
-    mats.forEach((m, i) => T(MAT_NOMBRE[m].toUpperCase(), M + nw + nameW + cw * i + cw / 2, yy + 5.4, { b: 1, s: 8.5, c: blanco, a: 'center' }));
+    mats.forEach((m, i) => { const x = M + nw + nameW + cw * i; fill(MC[m].fuerte); doc.rect(x, yy, cw, 8, 'F'); T(MAT_NOMBRE[m].toUpperCase(), x + cw / 2, yy + 5.4, { b: 1, s: 8.5, c: blanco, a: 'center' }); });
     return yy + 8;
   };
   y = encabezado(y);
-  const n = al.length, rh = Math.max(4.4, Math.min(8.2, (bottom - y - 9) / Math.max(1, n))), fs = rh < 5 ? 8 : rh < 5.8 ? 8.5 : rh < 7 ? 9.5 : 10.5;
-  const sumas = mats.map(() => []);
+  const n = al.length, rh = Math.max(4.6, Math.min(8.2, (bottom - y - 9 - chartH - 4) / Math.max(1, n))), fs = rh < 5.2 ? 8 : rh < 5.8 ? 8.5 : rh < 7 ? 9.5 : 10.5;
+  const vals = mats.map(() => []);
   al.forEach((a, i) => {
     if (y + rh > bottom) {
       doc.addPage(); fill(BAR); doc.rect(0, 0, Wd, 10, 'F'); T(S.cfg.escuela.toUpperCase() + ' · ' + gNombre(gid) + ' · ' + per, Wd / 2, 6.6, { b: 1, s: 8.5, c: blanco, a: 'center' });
       y = encabezado(16);
     }
     if (i % 2 === 0) { fill(TTINT[p - 1]); doc.rect(M, y, W, rh, 'F'); }
+    mats.forEach((m, k) => { fill(MC[m].tinte); doc.rect(M + nw + nameW + cw * k, y, cw, rh, 'F'); });
     draw(linea); doc.setLineWidth(0.15); doc.line(M, y + rh, M + W, y + rh);
     const base = y + rh / 2 + fs * 0.12;
     T(a.num, M + nw / 2, base, { s: fs - 1.5, c: gris, a: 'center' });
@@ -163,17 +168,37 @@ function dibujaLista(doc, gid, p) {
     mats.forEach((m, k) => {
       const v = notaPeriodo(calDoc(a.id, m), p), cx = M + nw + nameW + cw * k + cw / 2;
       if (v == null) T('—', cx, base, { s: fs, c: gris, a: 'center' });
-      else { sumas[k].push(v); T(fmtNota(v), cx, base, { b: 1, s: fs + 0.5, c: v < S.cfg.esc.aprob ? rojo : TINK[p - 1], a: 'center' }); }
+      else { vals[k].push(v); T(fmtNota(v), cx, base, { b: 1, s: fs + 0.5, c: v < S.cfg.esc.aprob ? rojo : MC[m].tinta, a: 'center' }); }
     });
     y += rh;
   });
   // promedio del grupo
-  if (y + 9 > bottom + 8) { doc.addPage(); y = 16; }
+  if (y + 9 > bottom + 6) { doc.addPage(); y = 16; }
   fill(TCOL[p - 1]); doc.rect(M, y + 1, W, 8, 'F');
   T('Promedio del grupo', M + nw + 2, y + 6.4, { b: 1, s: 9.5, c: TINK[p - 1] });
-  mats.forEach((m, k) => { const v = sumas[k].length ? sumas[k].reduce((s, x) => s + x, 0) / sumas[k].length : null; T(fix1(v), M + nw + nameW + cw * k + cw / 2, y + 6.4, { b: 1, s: 10.5, c: TINK[p - 1], a: 'center' }); });
-  T('Con calificación: ' + mats.map((m, k) => MAT_NOMBRE[m] + ' ' + sumas[k].length + '/' + n).join('   '), M, y + 15, { s: 8, c: gris });
-  T('En rojo: calificación menor a ' + S.cfg.esc.aprob + '.', Wd - M, y + 15, { s: 8, c: gris, a: 'right' });
+  mats.forEach((m, k) => { const v = vals[k].length ? vals[k].reduce((s, x) => s + x, 0) / vals[k].length : null; T(fix1(v), M + nw + nameW + cw * k + cw / 2, y + 6.4, { b: 1, s: 10.5, c: MC[m].tinta, a: 'center' }); });
+  y += 9;
+  // gráfica discreta: cuántos alumnos tiene el grupo en cada calificación, Inglés vs Computación
+  if (y + chartH + 2 > bottom + 10) { doc.addPage(); y = 18; }
+  y += 5;
+  const cats = ['5 o menos', '6', '7', '8', '9', '10'], cnt = vals.map(vs => { const c = [0, 0, 0, 0, 0, 0]; vs.forEach(v => { c[Math.max(0, Math.min(5, Math.floor(v + 1e-9) - 5))]++; }); return c; });
+  const mx = Math.max(1, ...cnt.map(c => Math.max(...c))), gx = M + nw, gw = 104, gh = chartH - 14, base0 = y + 5 + gh;
+  wide('DESEMPEÑO DEL GRUPO', M, y + 1.5, { s: 7, c: gris, sp: 0.7 });
+  mats.forEach((m, k) => { const lx = M + 52 + k * 30; fill(MC[m].fuerte); doc.rect(lx, y - 1.4, 3, 3, 'F'); T(MAT_NOMBRE[m], lx + 4.5, y + 1.2, { s: 7, c: gris }); });
+  const bw = (gw / cats.length) / (mats.length + 0.9);
+  cats.forEach((cat, ci) => {
+    const x0 = gx + ci * (gw / cats.length) + (gw / cats.length - bw * mats.length) / 2;
+    mats.forEach((m, k) => {
+      const c = cnt[k][ci], hh = c ? Math.max(0.8, gh * c / mx) : 0.4; fill(c ? MC[m].fuerte : linea); doc.rect(x0 + k * bw, base0 - hh, bw - 0.5, hh, 'F');
+      if (c) T(c, x0 + k * bw + (bw - 0.5) / 2, base0 - hh - 0.8, { s: 6.5, c: gris, a: 'center' });
+    });
+    T(cat, gx + ci * (gw / cats.length) + gw / cats.length / 2, base0 + 4, { s: 6.8, c: gris, a: 'center' });
+  });
+  draw(linea); doc.setLineWidth(0.2); doc.line(gx, base0, gx + gw, base0);
+  // al lado: aprobados por materia
+  const ax = M + nw + gw + 14;
+  T('Aprobados', ax, y + 6, { b: 1, s: 7, c: gris });
+  mats.forEach((m, k) => { const t = vals[k].length, ap = t ? Math.round(100 * vals[k].filter(v => v >= S.cfg.esc.aprob).length / t) : null; T(ap == null ? '—' : ap + '%', ax, y + 15 + k * 11, { b: 1, s: 15, c: MC[m].tinta }); T(MAT_NOMBRE[m] + (t ? ' · ' + t + '/' + n + ' evaluados' : ''), ax + 17, y + 14.4 + k * 11, { s: 7, c: gris }); });
 }
 function listaPDF(gids, p) {
   const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'letter' });
