@@ -53,7 +53,7 @@ function claseCard(c, f) {
     if (dado && c.tipo === 'eval') {
       plan = '<div style="margin-top:8px">Se dio: <b>Clase de evaluación · ' + esc(S.cfg.periodos[(c.periodo || 1) - 1]) + '</b></div>' + '<div style="margin-top:6px"><button class="btn sm" data-act="irNotas|' + gid + '|' + mat + '|' + (c.periodo || 1) + '">Capturar calificaciones →</button></div>';
     } else {
-      let si = sigClase(gid, mat);
+      let si = claseSig(c);
       if (dado && c.claseN) { const nv = c.nivel || si.nivel; si = Object.assign({}, si, { ev: null, nivel: nv, n: c.claseN, doc: claseN(mat, nv, c.claseN), fin: false }); }
       const bl = !si.ev && !si.fin ? bloqueDe(mat, si.nivel, si.n) : null;
       plan = '<div style="margin-top:8px">' + (dado ? 'Se dio: ' : '<span class="muted">Toca:</span> ') + '<b>' + esc(tituloSig(si)) + '</b> <span class="badge acc">Nivel ' + si.nivel + ' · ' + esc(nomNivel(mat, si.nivel)) + '</span>' + (si.doc && si.doc.borrador ? ' <span class="badge warn">borrador</span>' : '') + (si.ev ? ' <span class="badge warn">evaluación</span>' : '') + '</div>' +
@@ -74,14 +74,19 @@ function claseCard(c, f) {
         '<div class="row"><label class="f">Cambiar por…<select id="mm" data-chg="movMat">' + mOpts + '</select></label><label class="f">Grupo<select id="mg">' + movGrupoOpts(c.materia, c) + '</select></label></div>' +
         (c.intercambio ? '' : '<label class="row small" style="margin-top:8px"><input type="checkbox" id="mrep" checked> Hay que reponerle su clase a ' + gNombre(c.grupoId) + ' (' + MAT_NOMBRE[c.materia] + ')</label>') +
         '<div class="row" style="margin-top:8px"><button class="btn pri" data-act="intok|' + c.key + '">Confirmar cambio</button><button class="btn ghost" data-act="cancelx">Volver</button></div></div>';
+    } else if (S.ui.hoyEval === c.key) {
+      const sug = Number(S.ui.evalPer && S.ui.evalPer[c.key]) || periodoSug(gid, c.materia);
+      acc = '<div class="note" style="margin-top:10px"><b>Poner esta clase como clase de evaluación</b><div class="small muted" style="margin:2px 0 8px">Solo esta clase (' + gNombre(gid) + ' · ' + MAT_NOMBRE[c.materia] + ', ' + DIAS[dow(c.fecha)].toLowerCase() + ' ' + pd(c.fecha).getDate() + '): se dedica a evaluar y el programa de este grupo no avanza. Después captura las calificaciones en Evaluaciones.</div>' +
+        '<div class="row"><label class="f">Trimestre que se evalúa<select data-chg="evalPerC|' + c.key + '">' + S.cfg.periodos.map((p, i) => '<option value="' + (i + 1) + '"' + (sug === i + 1 ? ' selected' : '') + '>' + esc(p) + '</option>').join('') + '</select></label></div>' +
+        '<div class="row" style="margin-top:8px"><button class="btn pri" data-act="evalPon|' + c.key + '">Poner como evaluación</button><button class="btn ghost" data-act="cancelx">Volver</button></div></div>';
     } else if (S.ui.swap === c.key && !esFut) {
       const opts = ordenGrupos().filter(x => x.id !== c.grupoId && (x.materias || ['ingles']).indexOf(c.materia) >= 0).map(x => '<option value="' + x.id + '">' + gNombre(x.id) + '</option>').join('');
       acc = '<div class="note warn" style="margin-top:10px"><div class="row"><label class="f">Se la di a<select id="gsw">' + opts + '</select></label>' +
         '<label class="row small"><input type="checkbox" id="rep" checked> Hay que reponerle su clase a ' + gNombre(c.grupoId) + '</label></div><div class="small muted" style="margin-top:4px">La clase cuenta para el grupo al que se la diste (avance y cobro).</div><div class="row" style="margin-top:8px"><button class="btn pri" data-act="cambiook|' + c.key + '">Confirmar cambio</button><button class="btn ghost" data-act="cancelx">Volver</button></div></div>';
     } else if (esFut) {
-      acc = '<div class="row" style="margin-top:8px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button>' + (String(c.slotId).indexOf('x') !== 0 ? '<button class="btn sm quiet" data-act="mover|' + c.key + '">Cambiar clase</button>' : '') + (c.intercambio ? '<button class="btn sm quiet" data-act="intDesh|' + c.key + '">Deshacer intercambio</button>' : '') + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div>';
+      acc = '<div class="row" style="margin-top:8px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button>' + (String(c.slotId).indexOf('x') !== 0 ? '<button class="btn sm quiet" data-act="mover|' + c.key + '">Cambiar clase</button>' : '') + (c.intercambio ? '<button class="btn sm quiet" data-act="intDesh|' + c.key + '">Deshacer intercambio</button>' : '') + (c.evalPer ? '<button class="btn sm quiet" data-act="evalQuita|' + c.key + '">Quitar evaluación</button>' : '<button class="btn sm quiet" data-act="evalHoy|' + c.key + '">📝 Clase de evaluación</button>') + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div>';
     } else {
-      acc = '<div style="margin-top:12px"><button class="btn ok big" data-act="marcar|' + c.key + '">✓ Completado</button><div class="row" style="margin-top:6px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button>' + (String(c.slotId).indexOf('x') !== 0 ? '<button class="btn sm quiet" data-act="mover|' + c.key + '">Cambiar clase</button>' : '') + (c.intercambio ? '<button class="btn sm quiet" data-act="intDesh|' + c.key + '">Deshacer intercambio</button>' : '') + '<button class="btn sm quiet" data-act="cambiar|' + c.key + '">Se la di a otro grupo</button>' + (evalActiva(gid, c.materia) ? '<button class="btn sm quiet" data-act="evalCancelar|' + gid + '|' + c.materia + '">Quitar examen</button>' : '<button class="btn sm quiet" data-act="evalIniciar|' + gid + '|' + c.materia + '|1">Aplicar examen</button>') + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div></div>';
+      acc = '<div style="margin-top:12px"><button class="btn ok big" data-act="marcar|' + c.key + '">✓ Completado</button><div class="row" style="margin-top:6px;gap:2px"><button class="btn sm quiet" data-act="cancelar|' + c.key + '">Cancelar clase</button>' + (String(c.slotId).indexOf('x') !== 0 ? '<button class="btn sm quiet" data-act="mover|' + c.key + '">Cambiar clase</button>' : '') + (c.intercambio ? '<button class="btn sm quiet" data-act="intDesh|' + c.key + '">Deshacer intercambio</button>' : '') + '<button class="btn sm quiet" data-act="cambiar|' + c.key + '">Se la di a otro grupo</button>' + (c.evalPer ? '<button class="btn sm quiet" data-act="evalQuita|' + c.key + '">Quitar evaluación</button>' : '<button class="btn sm quiet" data-act="evalHoy|' + c.key + '">📝 Clase de evaluación</button>') + (String(c.slotId).indexOf('x') === 0 ? '<button class="btn sm quiet" data-act="deshacer|' + c.key + '">Quitar</button>' : '') + '</div></div>';
     }
   } else {
     const extra = mov ? ' · ' + (c.cambioA ? 'ahora: ' + gNombre(c.cambioA.grupoId) + ', ' + DIAS[dow(c.cambioA.fecha)].toLowerCase() + ' ' + pd(c.cambioA.fecha).getDate() + (c.cambioA.ini ? ' a las ' + hhmm(c.cambioA.ini) : '') : 'cambiada') : e === 'cancelada' ? ' · ' + ({ escuela: 'la escuela', maestro: 'yo', otro: 'otro motivo' }[c.motivo] || '') + (c.reponer && !c.repuesta ? ' · por reponer' : '') :
@@ -94,9 +99,12 @@ function claseCard(c, f) {
     ((e === 'pendiente' || esDada(c)) ? plan : '') + acc + '</div></div>' + bit + '</div>';
 }
 
+/* Siguiente clase del plan; si esta clase se marcó como evaluación, es de evaluación y no avanza el plan. */
+function claseSig(c) { const si = sigClase(gEf(c), c.materia); return c.evalPer ? Object.assign({}, si, { ev: { periodo: c.evalPer, desde: c.fecha } }) : si; }
 function claseBase(c) {
   const o = { fecha: c.fecha, slotId: c.slotId, grupoId: c.grupoId, materia: c.materia, ini: c.ini || '', fin: c.fin || '', extra: c.extra || '', repone: c.repone || null };
   if (c.intercambio) { o.intercambio = c.intercambio; o.repKey = c.repKey || null; }
+  if (c.evalPer) o.evalPer = c.evalPer;
   return o;
 }
 function recDeKey(key) { return clasesDelDia(S.fecha).find(x => x.key === key); }
@@ -107,24 +115,39 @@ function datosAvance(gid, mat) {
 function cierraEval(gid, mat) { const g = cl(S.grupos[gid]); if (g && g.evalFase && g.evalFase[mat]) { delete g.evalFase[mat]; save('grupos', gid, g); } }
 ACT.marcar = (el, key) => {
   const c = recDeKey(key); if (!c) return;
-  const av = datosAvance(c.grupoId, c.materia);
+  const av = c.evalPer ? { tipo: 'eval', periodo: c.evalPer, nivel: sigClase(c.grupoId, c.materia).nivel, sesion: null, claseN: null } : datosAvance(c.grupoId, c.materia);
   const d = Object.assign(claseBase(c), av, { estado: 'impartida', tarifa: S.cfg.tarifa || 0, pagan: pagan(c.grupoId) || null, ts: Date.now() });
   save('clases', key, d);
-  if (av.tipo === 'eval') { cierraEval(c.grupoId, c.materia); toast('Evaluación registrada. Captura las calificaciones en Evaluaciones.', 'ok'); }
+  if (av.tipo === 'eval') { if (!c.evalPer) cierraEval(c.grupoId, c.materia); toast('Evaluación registrada. Captura las calificaciones en Evaluaciones.', 'ok'); }
   render();
 };
 ACT.irNotas = (el, gid, mat, per) => { S.ui.n = Object.assign(S.ui.n || {}, { g: gid, m: mat, p: Number(per) }); ir('notas'); };
 ACT.evalIniciar = (el, gid, mat) => {
   const g = cl(S.grupos[gid]); g.evalFase = g.evalFase || {}; g.evalFase[mat] = { periodo: Number(S.ui.evalPer && S.ui.evalPer[gid + mat]) || periodoSug(gid, mat), desde: hoy() };
-  save('grupos', gid, g); S.ui.evalForm = null; toast(gNombre(gid) + ': su siguiente clase de ' + MAT_NOMBRE[mat] + ' será de evaluación', 'ok'); render();
+  save('grupos', gid, g); S.ui.evalForm = null; S.ui.hoyEval = null; toast(gNombre(gid) + ': su siguiente clase de ' + MAT_NOMBRE[mat] + ' será de evaluación', 'ok'); render();
 };
-ACT.evalCancelar = (el, gid, mat) => { cierraEval(gid, mat); S.ui.evalForm = null; render(); };
+ACT.evalCancelar = (el, gid, mat) => { cierraEval(gid, mat); S.ui.evalForm = null; S.ui.hoyEval = null; render(); };
+ACT.evalHoy = (el, key) => { S.ui.hoyEval = key; S.ui.cancel = S.ui.swap = S.ui.mover = null; if (S.ui.evalPer) delete S.ui.evalPer[key]; render(); };
+CHG.evalPerC = (el, key) => { S.ui.evalPer = S.ui.evalPer || {}; S.ui.evalPer[key] = el.value; };
+/* La clase de evaluación es solo de esta clase: se marca en su registro y no toca el avance del grupo. */
+ACT.evalPon = (el, key) => {
+  const c = recDeKey(key); if (!c) return;
+  const per = Number(S.ui.evalPer && S.ui.evalPer[key]) || periodoSug(gEf(c), c.materia);
+  const r = S.clases[key] ? cl(S.clases[key]) : Object.assign(claseBase(c), { estado: 'pendiente' });
+  r.evalPer = per; r.ts = Date.now(); save('clases', key, r);
+  S.ui.hoyEval = null; toast('Esta clase será de evaluación (' + S.cfg.periodos[per - 1] + '). El programa no avanza.', 'ok'); render();
+};
+ACT.evalQuita = (el, key) => {
+  const r0 = S.clases[key]; if (!r0) return; const r = cl(r0); delete r.evalPer;
+  if (!r.intercambio && String(r.slotId).indexOf('x') !== 0 && (r.estado || 'pendiente') === 'pendiente') del('clases', key); else save('clases', key, r);
+  S.ui.hoyEval = null; render();
+};
 ACT.evalForm = (el, gid, mat) => { S.ui.evalForm = (S.ui.evalForm === gid + '|' + mat) ? null : gid + '|' + mat; render(); };
 CHG.evalPer = (el, gid, mat) => { S.ui.evalPer = S.ui.evalPer || {}; S.ui.evalPer[gid + mat] = el.value; };
-ACT.cancelar = (el, key) => { S.ui.cancel = key; S.ui.swap = null; S.ui.mover = null; render(); };
-ACT.cambiar = (el, key) => { S.ui.swap = key; S.ui.cancel = null; S.ui.mover = null; render(); };
-ACT.mover = (el, key) => { S.ui.mover = key; S.ui.cancel = null; S.ui.swap = null; render(); };
-ACT.cancelx = () => { S.ui.cancel = null; S.ui.swap = null; S.ui.mover = null; render(); };
+ACT.cancelar = (el, key) => { S.ui.cancel = key; S.ui.swap = null; S.ui.mover = null; S.ui.hoyEval = null; render(); };
+ACT.cambiar = (el, key) => { S.ui.swap = key; S.ui.cancel = null; S.ui.mover = null; S.ui.hoyEval = null; render(); };
+ACT.mover = (el, key) => { S.ui.mover = key; S.ui.cancel = null; S.ui.swap = null; S.ui.hoyEval = null; render(); };
+ACT.cancelx = () => { S.ui.cancel = null; S.ui.swap = null; S.ui.mover = null; S.ui.hoyEval = null; render(); };
 /* Cambiar una clase por otra (materia y grupo): la nueva toma el mismo lugar del horario, solo en esa semana. */
 function movGrupoOpts(mat, c) {
   return ordenGrupos().filter(x => matsDe(x.id).indexOf(mat) >= 0 && !(x.id === c.grupoId && mat === c.materia)).map(x => '<option value="' + x.id + '">' + gNombre(x.id) + '</option>').join('');
@@ -163,7 +186,7 @@ ACT.cambiook = (el, key) => {
 };
 ACT.deshacer = (el, key) => {
   const r = S.clases[key];
-  if (r && r.intercambio && r.estado && r.estado !== 'pendiente') { save('clases', key, { fecha: r.fecha, slotId: r.slotId, grupoId: r.grupoId, materia: r.materia, ini: r.ini || '', fin: r.fin || '', extra: r.extra || '', estado: 'pendiente', intercambio: r.intercambio, repKey: r.repKey || null, ts: Date.now() }); render(); return; }
+  if (r && (r.intercambio || r.evalPer) && r.estado && r.estado !== 'pendiente') { const n = { fecha: r.fecha, slotId: r.slotId, grupoId: r.grupoId, materia: r.materia, ini: r.ini || '', fin: r.fin || '', extra: r.extra || '', estado: 'pendiente', ts: Date.now() }; if (r.intercambio) { n.intercambio = r.intercambio; n.repKey = r.repKey || null; } if (r.evalPer) n.evalPer = r.evalPer; if (r.repone) n.repone = r.repone; save('clases', key, n); render(); return; }
   if (r && r.cambioKey && S.clases[r.cambioKey]) { if ((S.clases[r.cambioKey].estado || 'pendiente') !== 'pendiente') { toast('La clase nueva ya está registrada: deshazla primero', 'bad'); return; } del('clases', r.cambioKey); }
   if (r && r.repone && S.clases[r.repone]) { const o = cl(S.clases[r.repone]); if (o.cambioKey === key) del('clases', r.repone); else { o.repuesta = false; save('clases', r.repone, o); } }
   if (r) del('clases', key); render();
@@ -201,7 +224,7 @@ ACT.reponerHoy = (el, key) => {
 ACT.noRepone = (el, key) => { const o = cl(S.clases[key]); o.reponer = false; save('clases', key, o); render(); };
 
 /* Fecha */
-ACT.dia = (el, f) => { S.fecha = f; S.ui.cancel = S.ui.swap = S.ui.mover = null; render(); };
+ACT.dia = (el, f) => { S.fecha = f; S.ui.cancel = S.ui.swap = S.ui.mover = S.ui.hoyEval = null; render(); };
 ACT.diaHoy = () => ACT.dia(null, hoy());
 ACT.diaMan = () => ACT.dia(null, sigHabil(hoy()));
 ACT.diaMas = (el, n) => { let f = S.fecha; f = Number(n) > 0 ? sigHabil(f) : antHabil(f); ACT.dia(null, f); };
@@ -214,7 +237,7 @@ function prepHTML(f, items) {
   const imp = {}, obj = {}, orden = pend.slice().sort((a, b) => (a.ini || 'zz').localeCompare(b.ini || 'zz'));
   const anota = (T, k, t, gn, n) => { const m = T[k] = T[k] || { g: [], t: t || '', n: 0 }; if (m.g.indexOf(gn) < 0) { m.g.push(gn); m.n += n || 0; } if (!m.t && t) m.t = t; };
   const tarjetas = orden.map(c => {
-    const gid = gEf(c), gn = gNombre(gid), si = sigClase(gid, c.materia), bl = !si.ev && !si.fin ? bloqueDe(c.materia, si.nivel, si.n) : null;
+    const gid = gEf(c), gn = gNombre(gid), si = claseSig(c), bl = !si.ev && !si.fin ? bloqueDe(c.materia, si.nivel, si.n) : null;
     if (si.ev) anota(imp, 'Examen de ' + MAT_NOMBRE[c.materia] + ' (' + S.cfg.periodos[si.ev.periodo - 1] + ')', '', gn, alumnosDe(gid).length);
     else if (si.doc) { const ml = matLineas(si.doc); Object.keys(ml).forEach(k => anota(matTipo(k, ml[k]) === 'imp' ? imp : obj, k, ml[k], gn, 0)); }
     return '<div class="pc m-' + c.materia + '"><div class="pc-h"><b>' + (c.ini ? hhmm(c.ini) : 'Extra') + '</b>' + (c.fin ? '<small>' + hhmm(c.fin) + '</small>' : '') + '</div><div class="pc-b"><div class="pc-g">' + gn + ' <span class="badge b-' + c.materia + '">' + MAT_NOMBRE[c.materia] + '</span></div><div class="pc-t">' + esc(tituloSig(si)) + '</div><div class="small muted">Nivel ' + si.nivel + ' · ' + esc(nomNivel(c.materia, si.nivel)) + (bl ? ' · bloque ' + bl.i + '/' + bl.de : '') + '</div></div></div>';
@@ -287,7 +310,7 @@ VIEWS.semana = function () {
         if (!recDone && !c.hon && (c.ini || '') >= '11:00') { h += '<div class="rec">Recreo</div>'; recDone = true; }
         if (c.hon) { h += '<div class="cel hon"><b>Honores</b><small>8:00 – 8:50</small></div>'; return; }
         const e = c.estado, past = f < t, sin = e === 'pendiente' && past;
-        h += '<div class="cel m-' + c.materia + ' e-' + (sin ? 'sinreg' : e) + (c.motivo === 'cambio' ? ' mov' : '') + (sel === c.key && !c.cont ? ' sel' : '') + (c.cont ? ' cont' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap;gap:4px"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: c.motivo === 'cambio' ? '↪' : '✕', cambiada: '⇄', pendiente: sin ? '!' : '○' }[e]) + '</span></div><span class="muted">' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cont ? ' (2.ª parte)' : '') + '</span><small>' + hhmm(c.ini) + ' – ' + hhmm(c.fin) + (e === 'cambiada' ? ' · a ' + gNombre(c.grupoReal) : '') + (e === 'cancelada' && c.motivo === 'cambio' && c.cambioA ? ' · pasó al ' + DIAS[dow(c.cambioA.fecha)].slice(0, 3).toLowerCase() + (c.cambioA.grupoId !== c.grupoId ? ' (' + gNombre(c.cambioA.grupoId) + ')' : '') : '') + (c.intercambio ? ' · intercambiada' : '') + '</small></div>';
+        h += '<div class="cel m-' + c.materia + ' e-' + (sin ? 'sinreg' : e) + (c.motivo === 'cambio' ? ' mov' : '') + (sel === c.key && !c.cont ? ' sel' : '') + (c.cont ? ' cont' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap;gap:4px"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: c.motivo === 'cambio' ? '↪' : '✕', cambiada: '⇄', pendiente: sin ? '!' : '○' }[e]) + '</span></div><span class="muted">' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cont ? ' (2.ª parte)' : '') + '</span><small>' + hhmm(c.ini) + ' – ' + hhmm(c.fin) + (e === 'cambiada' ? ' · a ' + gNombre(c.grupoReal) : '') + (e === 'cancelada' && c.motivo === 'cambio' && c.cambioA ? ' · pasó al ' + DIAS[dow(c.cambioA.fecha)].slice(0, 3).toLowerCase() + (c.cambioA.grupoId !== c.grupoId ? ' (' + gNombre(c.cambioA.grupoId) + ')' : '') : '') + (c.intercambio ? ' · intercambiada' : '') + (c.evalPer ? ' · evaluación' : '') + '</small></div>';
       });
       extras.forEach(c => { h += '<div class="cel m-' + c.materia + ' e-' + c.estado + (sel === c.key ? ' sel' : '') + '" data-act="celda|' + c.key + '"><div class="row sp" style="flex-wrap:nowrap"><b>' + gNombre(c.grupoId) + '</b><span class="mk">' + ({ impartida: '✓', cancelada: '✕', cambiada: '⇄', pendiente: '○' }[c.estado]) + '</span></div><span class="muted">Extra · ' + (c.materia === 'ingles' ? 'Inglés' : 'Computación') + (c.cambio ? ' (cambio)' : c.repone ? ' (reposición)' : '') + '</span><small>' + (c.ini ? hhmm(c.ini) : 'sin hora') + '</small></div>'; });
       if (!cells.length && !extras.length) h += '<div class="small muted">Sin clases</div>';
