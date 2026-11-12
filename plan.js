@@ -77,6 +77,18 @@ function bloqueDe(mat, nv, n) {
   return { i: i + 1, de: temas.length, tema: d.tema, a: temas[i].a, b: temas[i].b };
 }
 const linkify = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">enlace</a>');
+/* Enlaces del material: Drive -> descarga directa del PDF; Canva -> se abre el diseño (ahí: Compartir > Descargar > PDF). */
+function enlacesMat(d) {
+  const urls = (String((d && d.enlaces) || '') + ' ' + String((d && d.canva) || '')).match(/https?:\/\/[^\s<>"',;)]+/g) || [];
+  return urls.filter((u, i) => urls.indexOf(u) === i).map(u => {
+    const m = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
+    if (m) return { url: 'https://drive.google.com/uc?export=download&id=' + m[1], et: '⬇ Descargar PDF' };
+    if (/\.pdf(\?|#|$)/i.test(u)) return { url: u, et: '⬇ Descargar PDF' };
+    if (/canva\.com|canva\.link/i.test(u)) return { url: u, et: '🎨 Abrir en Canva' };
+    return { url: u, et: '🔗 Abrir enlace' };
+  });
+}
+const enlacesBtns = d => enlacesMat(d).map((e, i, a) => { const rep = a.filter(x => x.et === e.et); return '<a class="btn sm dl" href="' + esc(e.url) + '" target="_blank" rel="noopener">' + e.et + (rep.length > 1 ? ' ' + (rep.indexOf(e) + 1) : '') + '</a>'; }).join('');
 const partes = t => String(t || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean);
 function matLineas(d) { // { clave: descripción }
   const o = {}; String(d.detalle || '').split(/\n/).forEach(l => { const p = l.split(' · '); if (p.length > 1 && p[0].trim()) o[p[0].trim()] = p.slice(1).join(' · ').trim(); else if (l.trim()) o[l.trim().slice(0, 40)] = ''; });
@@ -97,7 +109,7 @@ function claseHTML(d, abierto) {
     (d.lenguaje ? '<h4>Lenguaje de la clase</h4><div class="chips">' + partes(d.lenguaje).map(x => '<span class="badge">' + esc(x) + '</span>').join('') + '</div>' : '') +
     (d.cuaderno ? '<h4>Nota para el cuaderno</h4><div class="note" style="white-space:pre-wrap">' + esc(d.cuaderno) + '</div>' : '') +
     (d.maestro ? '<details' + (abierto ? ' open' : '') + '><summary>Para el maestro</summary><p class="small" style="margin:6px 0 0;white-space:pre-wrap">' + esc(d.maestro) + '</p></details>' : '') +
-    (claves.length ? '<h4>Material</h4><ul style="margin:0 0 0 18px;padding:0">' + claves.map(k => '<li><b>' + esc(k) + '</b>' + (ml[k] ? ' · ' + esc(ml[k]) : '') + '</li>').join('') + '</ul>' : '') +
+    (claves.length ? '<h4>Material</h4><ul style="margin:0 0 0 18px;padding:0">' + claves.map(k => '<li><b>' + esc(k) + '</b>' + (ml[k] ? ' · ' + esc(ml[k]) : '') + '</li>').join('') + '</ul>' : '') + (enlacesMat(d).length ? '<div class="row" style="margin-top:8px">' + enlacesBtns(d) + '</div>' : '') +
     ((d.exacto || d.canva || d.enlaces) ? '<details><summary>Contenido y diseño del material</summary>' + (d.exacto ? '<p class="small" style="white-space:pre-wrap;margin:6px 0 0"><b>Contenido exacto:</b> ' + esc(d.exacto) + '</p>' : '') + (d.canva ? '<p class="small" style="white-space:pre-wrap;margin:6px 0 0"><b>Diseño en Canva:</b> ' + esc(d.canva) + '</p>' : '') + (d.enlaces ? '<p class="small" style="white-space:pre-wrap;margin:6px 0 0">' + linkify(d.enlaces) + '</p>' : '') + '</details>' : '') +
     (act ? '<h4>Actividades</h4><table>' + act + '</table>' : '') +
     (d.evidencia ? '<h4>Evidencia</h4><p style="margin:0">' + esc(d.evidencia) + '</p>' : '');
@@ -121,7 +133,7 @@ function leePlanLibro(wb, mat) {
   const docs = [], avisos = [], niveles = {}, nombres = {};
   wb.SheetNames.forEach(sn => {
     const m = String(sn).match(/nivel\s*(\d+)\s*(.*)$/i);
-    if (!m) { avisos.push('La hoja “' + sn + '” no se llama “Nivel N …”; se omitió.'); return; }
+    if (!m) { if (/niv|\d/i.test(sn)) avisos.push('La hoja “' + sn + '” no se llama “Nivel N …”; se omitió.'); return; } // hojas de apoyo (p. ej. “Pedido Canva”) se ignoran sin avisar
     const nv = Number(m[1]); if (!(nv >= 1 && nv <= 10)) { avisos.push('La hoja “' + sn + '”: el nivel debe ir de 1 a 10; se omitió.'); return; }
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval: '', raw: false });
     if (!rows.length) { avisos.push('Nivel ' + nv + ': la hoja no tiene clases.'); niveles[nv] = 0; nombres[nv] = titulo(m[2]); return; }

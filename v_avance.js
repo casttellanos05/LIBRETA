@@ -216,6 +216,58 @@ function honorCard(gs, mat, per) {
     '<details style="margin-top:12px"><summary><b>Los 10 mejores por grado</b></summary><div class="grid2" style="margin-top:8px">' + porGrado.map(x => '<div><h4 style="margin:6px 0 4px">' + x.gr + '.º grado</h4><div class="scroll">' + honorTabla(x.L) + '</div></div>').join('') + '</div></details>' +
     '<details style="margin-top:8px"><summary><b>Los 3 mejores por grupo</b></summary><div class="grid2" style="margin-top:8px">' + porGrupo.map(x => '<div><h4 style="margin:6px 0 4px">' + gNombre(x.g.id) + '</h4><div class="scroll">' + honorTabla(x.L) + '</div></div>').join('') + '</div></details></div>';
 }
+/* ---------- Distribución de calificaciones: escuela o un grupo, y quién va mejor / quién necesita refuerzo ---------- */
+const BANDAS = [{ n: 'Reprobado', c: '#c0392b' }, { n: '6 – 7', c: '#d9962b' }, { n: '8 – 9', c: '#2457d6' }, { n: '10', c: '#1f9d6b' }];
+const bandaDe = k => k < S.cfg.esc.aprob ? 0 : k < 8 ? 1 : k < S.cfg.esc.max ? 2 : 3;
+function resumenDist(ids, mat, per) {
+  const fins = []; ids.forEach(id => notasGrupo(id, mat, per).forEach(x => { if (x.fin != null) fins.push(x.fin); }));
+  const dist = {}; for (let k = S.cfg.esc.min; k <= S.cfg.esc.max; k++) dist[k] = 0;
+  fins.forEach(x => { dist[Math.max(S.cfg.esc.min, Math.min(S.cfg.esc.max, Math.round(x)))]++; });
+  const rep = fins.filter(x => x < S.cfg.esc.aprob).length;
+  return { n: fins.length, dist, prom: avg(fins), repPct: fins.length ? Math.round(100 * rep / fins.length) : null, aprobPct: fins.length ? Math.round(100 * (fins.length - rep) / fins.length) : null };
+}
+function estadoGrupo(r, esc) { // relativo a la escuela: refuerzo si hay muchos reprobados o va claramente por debajo
+  if (r.prom == null) return null;
+  if (r.repPct >= 20 || (esc != null && r.prom <= esc - 0.4)) return { t: 'Refuerzo', k: 'bad' };
+  if (esc != null && r.prom >= esc + 0.4 && r.repPct < 10) return { t: 'Destaca', k: 'ok' };
+  return { t: 'Parejo', k: '' };
+}
+function histSVG(dist, mat) {
+  const ks = Object.keys(dist).map(Number), mx = Math.max(1, ...Object.values(dist)), tot = ks.reduce((s, k) => s + dist[k], 0) || 1;
+  const W = 560, H = 236, pl = 8, pr = 8, pt = 30, pb = 46, bw = (W - pl - pr) / ks.length, ch = H - pt - pb;
+  let o = '<svg class="hist" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Distribución de calificaciones">';
+  [0.5, 1].forEach(f => { o += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + (pt + ch * (1 - f)) + '" y2="' + (pt + ch * (1 - f)) + '" stroke="currentColor" stroke-opacity=".08"/>'; });
+  ks.forEach((k, i) => {
+    const v = dist[k], h = ch * v / mx, x = pl + i * bw + bw * 0.14, w = bw * 0.72, y = pt + ch - h, c = BANDAS[bandaDe(k)].c;
+    o += '<g><title>' + (k === S.cfg.esc.min ? k + ' o menos' : k) + ': ' + v + ' alumno' + (v === 1 ? '' : 's') + '</title>' +
+      (v ? '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="7" fill="' + c + '" style="animation-delay:' + (i * 70) + 'ms"/>' : '<rect x="' + x + '" y="' + (pt + ch - 2) + '" width="' + w + '" height="2" rx="1" fill="' + c + '" opacity=".35"/>') +
+      '<text x="' + (x + w / 2) + '" y="' + (v ? y - 7 : pt + ch - 9) + '" text-anchor="middle" font-size="15" font-weight="700" fill="currentColor">' + v + '</text>' +
+      '<text x="' + (x + w / 2) + '" y="' + (H - 24) + '" text-anchor="middle" font-size="15" font-weight="700" fill="currentColor">' + (k === S.cfg.esc.min ? '≤' + k : k) + '</text>' +
+      '<text x="' + (x + w / 2) + '" y="' + (H - 7) + '" text-anchor="middle" font-size="11.5" fill="currentColor" fill-opacity=".55">' + Math.round(100 * v / tot) + '%</text></g>';
+  });
+  return o + '</svg>';
+}
+function distCard(gs, n, per) {
+  const sg = (n.dg && gs.some(g => g.id === n.dg)) ? n.dg : 'todos', esc0 = resumenDist(gs.map(g => g.id), n.m, per);
+  const filas = gs.map(g => { const r = resumenDist([g.id], n.m, per); return { g, r, e: estadoGrupo(r, esc0.prom) }; });
+  const con = filas.filter(f => f.r.prom != null).sort((a, b) => b.r.prom - a.r.prom);
+  const sel = sg === 'todos' ? esc0 : (filas.find(f => f.g.id === sg) || { r: esc0 }).r, est = sg === 'todos' ? null : (filas.find(f => f.g.id === sg) || {}).e;
+  const dotC = f => !f.e ? '#b8bfcc' : f.e.k === 'bad' ? '#c0392b' : f.e.k === 'ok' ? '#1f9d6b' : '#2457d6';
+  const mejor = con[0], peores = con.filter(f => f.e && f.e.k === 'bad').sort((a, b) => a.r.prom - b.r.prom);
+  let h = '<div class="card dist"><div class="row sp"><h3 style="margin:0">Distribución de calificaciones · ' + MAT_NOMBRE[n.m] + '</h3></div>' +
+    '<div class="chipsb"><button class="btn sm' + (sg === 'todos' ? ' pri' : '') + '" data-act="metDg|todos">🏫 Toda la escuela</button>' + filas.map(f => '<button class="btn sm' + (sg === f.g.id ? ' pri' : '') + '" data-act="metDg|' + f.g.id + '"><i class="dot" style="background:' + dotC(f) + '"></i>' + gNombre(f.g.id) + '</button>').join('') + '</div>';
+  if (!sel.n) return h + '<div class="empty" style="padding:18px 0">Este grupo aún no tiene calificaciones en este periodo.</div></div>';
+  h += '<div class="kpis"><div class="kpi"><b>' + fix1(sel.prom) + '</b><span>promedio</span></div><div class="kpi"><b>' + sel.aprobPct + '%</b><span>aprobados</span></div><div class="kpi"><b>' + sel.n + '</b><span>alumnos con calificación</span></div>' + (est ? '<div class="kpi"><span class="badge ' + est.k + '" style="font-size:13px">' + est.t + '</span><span>frente al promedio de la escuela (' + fix1(esc0.prom) + ')</span></div>' : '') + '</div>' +
+    '<div class="histw">' + histSVG(sel.dist, n.m) + '</div>' +
+    '<div class="leyb">' + BANDAS.map(b => '<span><i class="dot" style="background:' + b.c + '"></i>' + b.n + '</span>').join('') + '</div>';
+  // vista rápida de todos los grupos
+  h += '<h4 style="margin:16px 0 6px">¿Quién va mejor y quién necesita refuerzo?</h4>';
+  if (con.length > 1) h += '<div class="small" style="margin-bottom:8px">' + (mejor ? '<b style="color:#1f9d6b">Va mejor:</b> ' + gNombre(mejor.g.id) + ' (' + fix1(mejor.r.prom) + ')' : '') + (peores.length ? ' &nbsp;·&nbsp; <b style="color:#c0392b">Más refuerzo:</b> ' + peores.slice(0, 3).map(f => gNombre(f.g.id) + ' (' + fix1(f.r.prom) + ')').join(', ') : ' &nbsp;·&nbsp; Ningún grupo necesita refuerzo urgente.') + '</div>';
+  h += '<div class="rk">' + con.map(f => { const tot = f.r.n || 1, seg = [0, 0, 0, 0]; Object.keys(f.r.dist).forEach(k => { seg[bandaDe(Number(k))] += f.r.dist[k]; });
+    return '<button class="rkr' + (sg === f.g.id ? ' on' : '') + '" data-act="metDg|' + f.g.id + '"><span class="rkn">' + gNombre(f.g.id) + '</span><span class="rkb">' + seg.map((v, i) => v ? '<i style="width:' + (100 * v / tot) + '%;background:' + BANDAS[i].c + '" title="' + BANDAS[i].n + ': ' + v + '"></i>' : '').join('') + '</span><b class="rkp">' + fix1(f.r.prom) + '</b><span class="badge ' + f.e.k + ' rkt">' + f.e.t + '</span></button>'; }).join('') + '</div>' +
+    '<div class="small muted" style="margin-top:8px">Cada barra es el 100% de los alumnos del grupo, por colores. “Refuerzo” = 20% o más reprobados, o promedio 0.4 o más por debajo del de la escuela. “Destaca” = 0.4 o más por encima y menos de 10% reprobados.</div></div>';
+  return h;
+}
 function avMetricas() {
   const n = S.ui.met = S.ui.met || { m: 'ingles', p: 1 };
   const per = n.p === 'anual' ? 'anual' : Number(n.p), crit = critDe(n.m), gs = ordenGrupos().filter(g => matsDe(g.id).indexOf(n.m) >= 0);
@@ -225,6 +277,7 @@ function avMetricas() {
   if (S.ui.analisis) h += '<div class="card"><h3>Análisis de Claude</h3><div>' + S.ui.analisis + '</div></div>';
   const stats = gs.map(g => ({ g, s: statsGrupo(g.id, n.m, per) }));
   if (!stats.some(x => x.s.conNota)) return h + '<div class="card empty">Aún no hay calificaciones de ' + MAT_NOMBRE[n.m] + ' en este periodo.</div>';
+  h += distCard(gs, n, per);
   h += '<div class="card"><h3>Comparativo por grupo</h3><div class="scroll"><table><tr><th>Grupo</th><th>Nivel</th><th class="n">Alumnos</th>' + crit.map(c => '<th class="n">' + esc(c.nombre.replace('Examen ', 'Ex. ').replace(' en clase', '')) + '</th>').join('') + '<th class="n">Final</th><th class="n">Aprob.</th><th style="min-width:110px"></th></tr>' +
     stats.map(x => '<tr><td><b>' + gNombre(x.g.id) + '</b></td><td>' + x.g.nivel + '</td><td class="n">' + x.s.conNota + '/' + x.s.n + '</td>' + crit.map(c => '<td class="n">' + fix1(x.s[c.id]) + '</td>').join('') + '<td class="n"><b>' + fix1(x.s.final) + '</b></td><td class="n">' + (x.s.aprob == null ? '—' : x.s.aprob + '%') + '</td><td>' + barra(x.s.final, 10) + '</td></tr>').join('') + '</table></div></div>';
   h += honorCard(gs, n.m, per);
@@ -240,13 +293,6 @@ function avMetricas() {
     const v = [1, 2, 3].map(p => statsGrupo(g.id, n.m, p).final), ok = v.filter(x => x != null), d = ok.length > 1 ? ok[ok.length - 1] - ok[0] : null;
     return '<tr><td><b>' + gNombre(g.id) + '</b></td>' + v.map(x => '<td class="n">' + fix1(x) + '</td>').join('') + '<td class="n">' + (d == null ? '—' : '<span class="badge ' + (d > 0.05 ? 'ok' : d < -0.05 ? 'bad' : '') + '">' + (d >= 0 ? '+' : '') + fix1(d) + '</span>') + '</td></tr>';
   }).join('') + '</table></div></div>';
-  // distribución
-  const sg = n.dg || 'todos', ids = sg === 'todos' ? gs.map(g => g.id) : [sg], dist = {};
-  for (let k = S.cfg.esc.min; k <= S.cfg.esc.max; k++) dist[k] = 0;
-  ids.forEach(id => { const s = statsGrupo(id, n.m, per); Object.keys(s.dist).forEach(k => { dist[k] += s.dist[k]; }); });
-  const mx = Math.max(1, ...Object.values(dist));
-  h += '<div class="card"><div class="row sp"><h3 style="margin:0">Distribución de calificaciones</h3><select data-chg="metDg"><option value="todos">Todos los grupos</option>' + gs.map(g => '<option value="' + g.id + '"' + (sg === g.id ? ' selected' : '') + '>' + gNombre(g.id) + '</option>').join('') + '</select></div><div style="margin-top:10px">' +
-    Object.keys(dist).map(k => '<div class="row" style="gap:10px;padding:2px 0;flex-wrap:nowrap"><b style="width:24px">' + k + '</b><div class="grow">' + barra(dist[k], mx, Number(k) < S.cfg.esc.aprob ? 'low' : 'ok') + '</div><span style="width:30px;text-align:right">' + dist[k] + '</span></div>').join('') + '</div></div>';
   // bitácora
   h += '<div class="card"><h3>Lo que dice la bitácora</h3><div class="scroll"><table><tr><th>Grupo</th><th class="n">Registros</th><th class="n">Ánimo</th><th class="n">Participación</th><th class="n">Plan cumplido</th><th>Lo más repetido</th></tr>' + gs.map(g => {
     const b = bitStats(g.id), top = Object.keys(b.tags).sort((x, y) => b.tags[y] - b.tags[x]).slice(0, 2).map(t => t + ' (' + b.tags[t] + ')').join(', ');
@@ -255,7 +301,7 @@ function avMetricas() {
   return h;
 }
 ACT.metSet = (el, k, v) => { S.ui.met[k] = k === 'p' && v !== 'anual' ? Number(v) : v; render(); };
-CHG.metDg = el => { S.ui.met.dg = el.value; render(); };
+ACT.metDg = (el, id) => { S.ui.met.dg = id; render(); };
 const mdLite = t => {
   const L = esc(t).split(/\r?\n/), out = []; let ul = false;
   L.forEach(l => {

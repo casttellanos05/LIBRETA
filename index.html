@@ -338,6 +338,26 @@ details > summary { transition: color .2s; cursor: pointer; } details[open] > *:
 @keyframes navpop { 0% { transform: scale(.8); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
 @keyframes pulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; } }
+
+.dl { text-decoration: none; display: inline-flex; align-items: center; }
+.dlbox { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.dlrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0; font-size: 13.5px; }
+.dist .chipsb { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+.dist .chipsb .btn { display: inline-flex; align-items: center; gap: 6px; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.dist .kpis { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 10px 0 4px; }
+.dist .kpi { display: flex; flex-direction: column; gap: 2px; min-width: 70px; } .dist .kpi b { font-size: 26px; line-height: 1.1; } .dist .kpi span { font-size: 12px; color: var(--muted); max-width: 150px; }
+.histw { max-width: 640px; } svg.hist { width: 100%; height: auto; color: var(--ink, #0d1321); display: block; }
+svg.hist rect { transform-box: fill-box; transform-origin: bottom; animation: growY .7s var(--ease) both; }
+@keyframes growY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.leyb { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-top: 4px; } .leyb span { display: inline-flex; align-items: center; gap: 5px; }
+.rk { display: flex; flex-direction: column; gap: 4px; }
+.rkr { display: grid; grid-template-columns: 54px 1fr 40px 70px; align-items: center; gap: 10px; width: 100%; background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 5px 8px; font: inherit; color: inherit; cursor: pointer; text-align: left; transition: background .18s, border-color .18s, transform .18s var(--ease); }
+.rkr:hover { background: rgba(36,87,214,.06); transform: translateX(2px); } .rkr.on { background: rgba(36,87,214,.10); border-color: rgba(36,87,214,.35); }
+.rkn { font-weight: 700; } .rkb { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: var(--line); } .rkb i { display: block; height: 100%; animation: growX .7s var(--ease) both; transform-origin: left; }
+.rkp { text-align: right; } .rkt { justify-self: end; }
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (max-width: 520px) { .rkr { grid-template-columns: 46px 1fr 34px 62px; gap: 6px; padding: 5px 4px; } }
 </style>
 </head>
 <body>

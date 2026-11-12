@@ -235,17 +235,17 @@ const RE_IMPRESO = /impres|hoja|tarjeta|flashcard|memorama|cartel|póster|poster
 const matTipo = (k, d) => RE_IMPRESO.test(k + ' ' + (d || '')) ? 'imp' : 'obj';
 function prepHTML(f, items) {
   const pend = items.filter(c => c.estado === 'pendiente'); if (!pend.length) return '';
-  const imp = {}, obj = {}, orden = pend.slice().sort((a, b) => (a.ini || 'zz').localeCompare(b.ini || 'zz'));
+  const imp = {}, obj = {}, enl = [], orden = pend.slice().sort((a, b) => (a.ini || 'zz').localeCompare(b.ini || 'zz'));
   const anota = (T, k, t, gn, n) => { const m = T[k] = T[k] || { g: [], t: t || '', n: 0 }; if (m.g.indexOf(gn) < 0) { m.g.push(gn); m.n += n || 0; } if (!m.t && t) m.t = t; };
   const tarjetas = orden.map(c => {
     const gid = gEf(c), gn = gNombre(gid), si = claseSig(c), bl = !si.ev && !si.fin ? bloqueDe(c.materia, si.nivel, si.n) : null;
     if (si.ev) anota(imp, 'Examen de ' + MAT_NOMBRE[c.materia] + ' (' + S.cfg.periodos[si.ev.periodo - 1] + ')', '', gn, alumnosDe(gid).length);
-    else if (si.doc) { const ml = matLineas(si.doc); Object.keys(ml).forEach(k => anota(matTipo(k, ml[k]) === 'imp' ? imp : obj, k, ml[k], gn, 0)); }
+    else if (si.doc) { if (enlacesMat(si.doc).length) enl.push({ gn, mat: c.materia, n: si.n, d: si.doc }); const ml = matLineas(si.doc); Object.keys(ml).forEach(k => anota(matTipo(k, ml[k]) === 'imp' ? imp : obj, k, ml[k], gn, 0)); }
     return '<div class="pc m-' + c.materia + '"><div class="pc-h"><b>' + (c.ini ? hhmm(c.ini) : 'Extra') + '</b>' + (c.fin ? '<small>' + hhmm(c.fin) + '</small>' : '') + '</div><div class="pc-b"><div class="pc-g">' + gn + ' <span class="badge b-' + c.materia + '">' + MAT_NOMBRE[c.materia] + '</span></div><div class="pc-t">' + esc(tituloSig(si)) + '</div><div class="small muted">Nivel ' + si.nivel + ' · ' + esc(nomNivel(c.materia, si.nivel)) + (bl ? ' · bloque ' + bl.i + '/' + bl.de : '') + '</div></div></div>';
   });
   const lista = T => { const ks = Object.keys(T); return ks.length ? '<ul>' + ks.map(k => '<li><b>' + esc(k) + '</b>' + (T[k].t ? ' · ' + esc(T[k].t) : '') + (T[k].n ? ' · ' + T[k].n + ' copias en total' : '') + ' <span class="muted">(' + T[k].g.join(', ') + ')</span></li>').join('') + '</ul>' : '<div class="small muted">Nada especial.</div>'; };
   return '<div class="card"><h3>Preparar para ' + (f === sigHabil(hoy()) ? 'mañana' : fmtLargo(f)) + '</h3><div class="prepg">' + tarjetas.join('') + '</div>' +
-    '<div class="matg"><div class="mcard imp"><h4>Material impreso</h4>' + lista(imp) + '</div><div class="mcard obj"><h4>Instrumentos y objetos</h4>' + lista(obj) + '</div></div>' +
+    '<div class="matg"><div class="mcard imp"><h4>Material impreso</h4>' + lista(imp) + (enl.length ? '<div class="dlbox"><div class="small muted" style="margin-bottom:4px">Descargar material</div>' + enl.map(x => '<div class="dlrow"><span><b>' + x.gn + '</b> · ' + MAT_NOMBRE[x.mat] + ' · clase ' + x.n + '</span><span class="row" style="gap:6px">' + enlacesBtns(x.d) + '</span></div>').join('') + '</div>' : '') + '</div><div class="mcard obj"><h4>Instrumentos y objetos</h4>' + lista(obj) + '</div></div>' +
     '<div class="small muted" style="margin-top:10px">Antes de salir: bocina cargada · material impreso y recortado · plumones y cinta</div></div>';
 }
 
