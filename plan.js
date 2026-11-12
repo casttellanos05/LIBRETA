@@ -77,18 +77,35 @@ function bloqueDe(mat, nv, n) {
   return { i: i + 1, de: temas.length, tema: d.tema, a: temas[i].a, b: temas[i].b };
 }
 const linkify = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">enlace</a>');
-/* Enlaces del material: Drive -> descarga directa del PDF; Canva -> se abre el diseño (ahí: Compartir > Descargar > PDF). */
+/* Enlaces del material, cada uno con el NOMBRE del material (clave del Excel, ej. AFAM1).
+   El nombre se toma del texto junto al enlace ("AFAM1: https://…"); si no hay, de la clave de material de la clase.
+   Drive -> descarga directa del PDF; Canva -> se abre el diseño (Compartir > Descargar > PDF). */
 function enlacesMat(d) {
-  const urls = (String((d && d.enlaces) || '') + ' ' + String((d && d.canva) || '')).match(/https?:\/\/[^\s<>"',;)]+/g) || [];
-  return urls.filter((u, i) => urls.indexOf(u) === i).map(u => {
-    const m = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
-    if (m) return { url: 'https://drive.google.com/uc?export=download&id=' + m[1], et: '⬇ Descargar PDF' };
-    if (/\.pdf(\?|#|$)/i.test(u)) return { url: u, et: '⬇ Descargar PDF' };
-    if (/canva\.com|canva\.link/i.test(u)) return { url: u, et: '🎨 Abrir en Canva' };
-    return { url: u, et: '🔗 Abrir enlace' };
+  const t = String((d && d.enlaces) || '') + '\n' + String((d && d.canva) || ''), re = /https?:\/\/[^\s<>"',;)]+/g, hits = []; let m;
+  while ((m = re.exec(t))) hits.push({ u: m[0].replace(/[.\]]+$/, ''), a: m.index, b: m.index + m[0].length });
+  const claves = d ? Object.keys(matLineas(d)) : [], limpia = x => String(x || '').replace(/^[\s:=\-–—·|*•(\[]+|[\s:=\-–—·|*•)\]]+$/g, '').trim();
+  const res = [], vistos = {};
+  hits.forEach((h, i) => {
+    const antes = t.slice(i ? hits[i - 1].b : 0, h.a), ultima = antes.split(/\n/).pop(), desp = t.slice(h.b, i + 1 < hits.length ? hits[i + 1].a : t.length).split(/\n/)[0];
+    const buscaClave = x => claves.find(k => x.toLowerCase().indexOf(k.toLowerCase()) >= 0);
+    let nombre = buscaClave(ultima) || buscaClave(desp) || '';
+    if (!nombre) { const l = limpia(ultima); if (l && l.length <= 40) nombre = l; }
+    if (!nombre) { const l = limpia(desp); if (l && l.length <= 40) nombre = l; }
+    if (!nombre && claves.length === 1) nombre = claves[0];
+    if (!nombre && claves.length > 1 && claves.length === hits.length) nombre = claves[i];
+    if (!nombre) nombre = 'Material' + (hits.length > 1 ? ' ' + (i + 1) : '') + (d && d.n ? ' · clase ' + d.n : '');
+    const u = h.u, dr = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
+    let e;
+    if (dr) e = { url: 'https://drive.google.com/uc?export=download&id=' + dr[1], ic: '⬇', tit: 'Descargar PDF' };
+    else if (/\.pdf(\?|#|$)/i.test(u)) e = { url: u, ic: '⬇', tit: 'Descargar PDF' };
+    else if (/canva\.com|canva\.link/i.test(u)) e = { url: u, ic: '🎨', tit: 'Abrir en Canva (Compartir > Descargar > PDF)' };
+    else e = { url: u, ic: '🔗', tit: 'Abrir enlace' };
+    if (vistos[e.url]) return; vistos[e.url] = 1; e.nombre = nombre; res.push(e);
   });
+  return res;
 }
-const enlacesBtns = d => enlacesMat(d).map((e, i, a) => { const rep = a.filter(x => x.et === e.et); return '<a class="btn sm dl" href="' + esc(e.url) + '" target="_blank" rel="noopener">' + e.et + (rep.length > 1 ? ' ' + (rep.indexOf(e) + 1) : '') + '</a>'; }).join('');
+const enlaceBtn = e => '<a class="btn sm dl" href="' + esc(e.url) + '" target="_blank" rel="noopener" title="' + esc(e.tit) + '">' + e.ic + ' ' + esc(e.nombre) + '</a>';
+const enlacesBtns = d => enlacesMat(d).map(enlaceBtn).join('');
 const partes = t => String(t || '').split(/[;\n]/).map(x => x.trim()).filter(Boolean);
 function matLineas(d) { // { clave: descripción }
   const o = {}; String(d.detalle || '').split(/\n/).forEach(l => { const p = l.split(' · '); if (p.length > 1 && p[0].trim()) o[p[0].trim()] = p.slice(1).join(' · ').trim(); else if (l.trim()) o[l.trim().slice(0, 40)] = ''; });
