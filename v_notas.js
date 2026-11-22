@@ -294,10 +294,9 @@ function dibujaBoleta(doc, a, solo, prueba) {
     const sub = 'BOLETA DE EVALUACIÓN · ' + D.map(r => r.nombre.toUpperCase()).join(' Y ');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...blue);
     if (doc.setCharSpace) { const sw = doc.getTextWidth(sub) + (sub.length - 1) * 0.8; doc.setCharSpace(0.8); doc.text(sub, (Wd - sw) / 2 + ox, 27.5 + oy); doc.setCharSpace(0); } else T(sub, Wd / 2, 27.5, { b: 1, s: 8, c: blue, a: 'center' });
-    T('Ciclo escolar ' + S.cfg.ciclo, Wd / 2, 32.5, { s: 8.5, c: gris, a: 'center' });
+    T('Ciclo escolar ' + S.cfg.ciclo + (g && g.maestro ? '   ·   Maestro(a) de grupo: ' + g.maestro : ''), Wd / 2, 32.5, { s: 8.5, c: gris, a: 'center' }); // v26: el titular va aquí (antes quedaba debajo de la franja de la materia)
     T('ALUMNO', L.m, 42, { b: 1, s: 7, c: blue }); T(a.nombre, L.m, 49.5, { b: 1, s: 14, c: navy });
     T('GRADO Y GRUPO', L.m + L.w, 42, { b: 1, s: 7, c: blue, a: 'right' }); T(gNombre(a.grupoId), L.m + L.w, 49.5, { b: 1, s: 14, c: navy, a: 'right' });
-    if (g && g.maestro) T('Maestro(a) de grupo: ' + g.maestro, L.m, 54.5, { s: 7.5, c: gris });
   }
   D.forEach((r, bi) => {
     const y = L.y0 + bi * (L.hb + L.sep);
