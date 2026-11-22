@@ -349,7 +349,7 @@ function dibujaBoleta(doc, a, solo, prueba) {
       draw(gris); doc.setLineWidth(0.25); LN(bx + 5, sy + 21, bx + bw - 5, sy + 21); T('Firma de enterado(a)', bx + bw / 2, sy + 24, { s: 6.5, c: gris, a: 'center' });
     });
     const ty = sy + 36, fw = (L.w - 16) / 2; draw(navy); doc.setLineWidth(0.3);
-    [[S.cfg.maestro, 'Maestro de ' + D.map(r => r.nombre).join(' y '), L.m + 4], [S.cfg.director || '', 'Director(a) de la escuela', L.m + L.w - fw - 4]].forEach(f => { LN(f[2], ty, f[2] + fw, ty); T(f[0], f[2] + fw / 2, ty + 4, { s: 8, a: 'center' }); T(f[1], f[2] + fw / 2, ty + 8, { s: 6.8, c: gris, a: 'center' }); });
+    [[S.cfg.maestro, 'Maestro de ' + D.map(r => r.nombre).join(' y '), L.m + 4, 'maestro'], [S.cfg.director || '', 'Director(a) de la escuela', L.m + L.w - fw - 4, 'director']].forEach(f => { const fi = !prueba && firmaDe(f[3]); if (fi) { const mh = 10, mw = fw * 0.72, k = Math.min(mw / fi.w, mh / fi.h), w = fi.w * k, h = fi.h * k; try { doc.addImage(fi.img, 'PNG', f[2] + (fw - w) / 2, ty - h - 0.4, w, h, undefined, 'FAST'); } catch (e) { } } LN(f[2], ty, f[2] + fw, ty); T(f[0], f[2] + fw / 2, ty + 4, { s: 8, a: 'center' }); T(f[1], f[2] + fw / 2, ty + 8, { s: 6.8, c: gris, a: 'center' }); });
     T('Escala de ' + S.cfg.esc.min + ' a ' + S.cfg.esc.max + '. Calificación aprobatoria: ' + S.cfg.esc.aprob + '.', Wd / 2, 266.2, { s: 6.5, c: gris, a: 'center' });
   }
 }

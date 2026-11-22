@@ -11,7 +11,9 @@ VIEWS.ajustes = function () {
     '<button class="btn pri" data-act="actualizar"' + (S.ui.upd ? ' disabled' : '') + '>' + (S.ui.upd ? 'Actualizando…' : '⟳ Actualizar ahora') + '</button></div>' +
     '<div class="small muted" style="margin-top:8px">Sube lo que capturaste, descarga lo más reciente de tus otros equipos y busca una versión nueva de la app. Necesita internet.</div></div>';
   if (!S.ui.ver) verApp().then(v => { S.ui.ver = v; const e = $('#verIn'); if (e) e.textContent = v; });
-  h += '<div class="card"><h3>Escuela y boleta</h3><div class="grid2"><label class="f">Escuela<input value="' + esc(c.escuela) + '" data-chg="cfg|escuela"></label><label class="f">Ciclo escolar<input value="' + esc(c.ciclo) + '" data-chg="cfg|ciclo"></label><label class="f">Tu nombre (aparece en la boleta)<input value="' + esc(c.maestro) + '" data-chg="cfg|maestro"></label><label class="f">Director(a)<input value="' + esc(c.director) + '" data-chg="cfg|director"></label></div></div>';
+  h += '<div class="card"><h3>Escuela y boleta</h3><div class="grid2"><label class="f">Escuela<input value="' + esc(c.escuela) + '" data-chg="cfg|escuela"></label><label class="f">Ciclo escolar<input value="' + esc(c.ciclo) + '" data-chg="cfg|ciclo"></label><label class="f">Tu nombre (aparece en la boleta)<input value="' + esc(c.maestro) + '" data-chg="cfg|maestro"></label><label class="f">Director(a)<input value="' + esc(c.director) + '" data-chg="cfg|director"></label></div>' +
+    '<h4 style="margin:16px 0 4px">Firmas de la boleta</h4><div class="small muted" style="margin-bottom:8px">Sube una foto de cada firma hecha con pluma sobre hoja blanca, con buena luz y sin sombras. La app quita el fondo y la pone sobre la línea de firma de cada boleta. Usa solo firmas que tengas autorización de usar. Se guardan en este equipo: súbelas en cada equipo donde imprimas boletas.</div>' +
+    '<div class="grid2">' + firmaBox('maestro', 'Tu firma') + firmaBox('director', 'Firma del director(a)') + '</div></div>';
   h += '<div class="card"><h3>Cobro</h3><label class="f" style="max-width:260px">Monto por niño en cada clase<input inputmode="decimal" value="' + (c.tarifa || '') + '" placeholder="0" data-chg="cfgNum|tarifa"></label><div class="small muted" style="margin-top:6px">Cada clase se cobra por el número de niños que pagan en el grupo (monto × niños). Los niños sin cobro, como hermanos gemelos, se desmarcan en Grupos con la casilla “¿Paga?”. Cada clase guarda el monto y el número de niños al impartirla, así que cambiarlos después no altera lo ya cobrado.</div></div>';
   h += '<div class="card"><h3>Evaluación</h3><div class="small muted" style="margin:0 0 8px">Cada materia se pondera por separado. Escribe el nombre del criterio y su porcentaje (deben sumar 100).</div>';
   ['ingles', 'compu'].forEach(m => {
@@ -62,6 +64,43 @@ ACT.actualizar = async () => {
   } catch (e) { partes.push('error: ' + (e.message || e)); }
   S.ui.upd = false; S.ui.ver = await verApp(); S.ui.updTxt = partes.join(' · '); toast(partes.join(' · '), /no se pudo|error/.test(partes.join()) ? 'bad' : 'ok'); render();
 };
+/* ---------- firmas de la boleta (se guardan en este equipo, junto al plan) ---------- */
+const firmaDe = q => { const f = S.plan && S.plan['firma:' + q]; return f && f.img ? f : null; };
+function firmaBox(q, titulo) {
+  const f = firmaDe(q);
+  return '<div class="firmab"><div class="small" style="font-weight:600;margin-bottom:4px">' + titulo + '</div><div class="firmaprev">' + (f ? '<img src="' + f.img + '" alt="' + esc(titulo) + '">' : '<span class="small muted">Sin firma</span>') + '</div>' +
+    '<div class="row" style="gap:6px;margin-top:6px"><label class="btn sm">' + (f ? 'Cambiar foto' : 'Subir foto') + '<input type="file" accept="image/*" hidden data-chg="firmaSube|' + q + '"></label>' + (f ? '<button class="btn sm quiet danger" data-act="firmaQuita|' + q + '">Quitar</button>' : '') + '</div></div>';
+}
+async function firmaProcesa(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('No se pudo leer la imagen. Prueba con una foto JPG o PNG.')); i.src = url; });
+    const k0 = Math.min(1, 1100 / Math.max(im.naturalWidth, im.naturalHeight)), W = Math.max(1, Math.round(im.naturalWidth * k0)), H = Math.max(1, Math.round(im.naturalHeight * k0));
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const cx = cv.getContext('2d', { willReadFrequently: true }); cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); cx.drawImage(im, 0, 0, W, H);
+    const d = cx.getImageData(0, 0, W, H), p = d.data, lum = new Uint8Array(W * H), muestra = [];
+    for (let i = 0, j = 0; j < W * H; i += 4, j++) { lum[j] = (p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11) | 0; if (j % 7 === 0) muestra.push(lum[j]); }
+    muestra.sort((a, b) => a - b); const papel = Math.max(140, muestra[Math.floor(muestra.length * 0.85)]), alto = papel * 0.86, bajo = papel * 0.5;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const j = y * W + x, i = j * 4, t = Math.max(0, Math.min(1, (alto - lum[j]) / (alto - bajo))); // 0 = papel, 1 = tinta
+      if (t < 0.04) { p[i + 3] = 0; continue; }
+      p[i] = p[i] * 0.6; p[i + 1] = p[i + 1] * 0.6; p[i + 2] = p[i + 2] * 0.6; p[i + 3] = Math.round(255 * t);
+      if (t > 0.25) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 < 0 || (x1 - x0) < 20 || (y1 - y0) < 8) throw new Error('No encontré la firma en la foto. Usa pluma oscura sobre hoja blanca.');
+    cx.putImageData(d, 0, 0); const pad = 6; x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(W - 1, x1 + pad); y1 = Math.min(H - 1, y1 + pad);
+    const cw = x1 - x0 + 1, chh = y1 - y0 + 1, k = Math.min(1, 520 / cw), ow = Math.max(1, Math.round(cw * k)), oh = Math.max(1, Math.round(chh * k));
+    const o = document.createElement('canvas'); o.width = ow; o.height = oh; o.getContext('2d').drawImage(cv, x0, y0, cw, chh, 0, 0, ow, oh);
+    return { img: o.toDataURL('image/png'), w: ow, h: oh, ts: Date.now() };
+  } finally { URL.revokeObjectURL(url); }
+}
+CHG.firmaSube = async (el, q) => {
+  const f = el.files && el.files[0]; if (!f) return;
+  try { const r = await firmaProcesa(f); S.plan['firma:' + q] = r; await PLAN.apply({ ['firma:' + q]: r }, []); toast('Firma guardada ✓', 'ok'); }
+  catch (e) { toast(e.message || 'No se pudo guardar la firma', 'bad'); }
+  render();
+};
+ACT.firmaQuita = async (el, q) => { delete S.plan['firma:' + q]; await PLAN.apply({}, ['firma:' + q]); render(); };
 CHG.cfg = (el, k) => { cfgSet(c => { c[k] = el.value.trim(); }); render(); };
 CHG.cfgNum = (el, k) => { const v = parseNota(el.value); if (v === undefined || v < 0) { toast('Número no válido', 'bad'); render(); return; } cfgSet(c => { c[k] = v === '' ? 0 : v; }); render(); };
 CHG.crit = (el, m, i, k) => {
