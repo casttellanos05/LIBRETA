@@ -274,7 +274,7 @@ CHG.impOff = (el, k) => { const v = parseFloat(String(el.value).replace(',', '.'
 function bolLay(nm) {
   const one = nm === 1, L = { m: 14, w: 187.9, labW: 74 };
   L.colW = (L.w - L.labW) / 4; L.tit = one ? 8 : 6.5; L.desc = one ? 17 : 8.5; L.th = one ? 7.5 : 6.5; L.cr = one ? 9.5 : 6.6; L.pr = one ? 9.5 : 7.4; L.gap = one ? 3 : 2.5; L.ob = one ? 27 : 8.6;
-  L.hb = L.tit + L.desc + L.th + 3 * L.cr + L.pr + L.gap + 3 * L.ob; L.y0 = 55; L.sep = 3; L.ty = 261; // la línea de las firmas del maestro y del director queda abajo, con ~20 mm de espacio para firmar
+  L.hb = L.tit + L.desc + L.th + 3 * L.cr + L.pr + L.gap + 3 * L.ob; L.y0 = 53; L.sep = 3; L.ty = 261; // la línea de las firmas del maestro y del director queda abajo, con ~20 mm de espacio para firmar
   return L;
 }
 /* colores de trimestre: azul, lila, ámbar */
@@ -349,7 +349,7 @@ function dibujaBoleta(doc, a, solo, prueba) {
       draw(gris); doc.setLineWidth(0.25); LN(bx + 5, sy + 21, bx + bw - 5, sy + 21); T('Firma de enterado(a)', bx + bw / 2, sy + 24, { s: 6.5, c: gris, a: 'center' });
     });
     const ty = L.ty, fw = (L.w - 16) / 2; draw(navy); doc.setLineWidth(0.3);
-    [[S.cfg.maestro, 'Maestro de ' + D.map(r => r.nombre).join(' y '), L.m + 4, 'maestro'], [S.cfg.director || '', 'Director(a) de la escuela', L.m + L.w - fw - 4, 'director']].forEach(f => { const fi = !prueba && firmaDe(f[3]); if (fi) { const mh = Math.min(19.5, ty - (sy + 27.5)), mw = fw * 0.86, k = Math.min(mw / fi.w, mh / fi.h), w = fi.w * k, h = fi.h * k; try { doc.addImage(fi.img, 'PNG', f[2] + (fw - w) / 2, ty - h - 0.4, w, h, undefined, 'FAST'); } catch (e) { } } LN(f[2], ty, f[2] + fw, ty); T(f[0], f[2] + fw / 2, ty + 4, { s: 8, a: 'center' }); T(f[1], f[2] + fw / 2, ty + 8, { s: 6.8, c: gris, a: 'center' }); });
+    [[S.cfg.maestro, 'Maestro de ' + D.map(r => r.nombre).join(' y '), L.m + 4, 'maestro'], [S.cfg.director || '', 'Director(a) de la escuela', L.m + L.w - fw - 4, 'director']].forEach(f => { const fi = !prueba && firmaDe(f[3]); if (fi) { const top = sy + 25.5, bot = ty + 1.6, mh = Math.min(27, bot - top), mw = fw * 0.94, k = Math.min(mw / fi.w, mh / fi.h), w = fi.w * k, h = fi.h * k; try { doc.addImage(fi.img, 'PNG', f[2] + (fw - w) / 2, bot - h, w, h, undefined, 'FAST'); } catch (e) { } } LN(f[2], ty, f[2] + fw, ty); T(f[0], f[2] + fw / 2, ty + 4, { s: 8, a: 'center' }); T(f[1], f[2] + fw / 2, ty + 8, { s: 6.8, c: gris, a: 'center' }); });
     T('Escala de ' + S.cfg.esc.min + ' a ' + S.cfg.esc.max + '. Calificación aprobatoria: ' + S.cfg.esc.aprob + '.', Wd / 2, 266.2, { s: 6.5, c: gris, a: 'center' });
   }
 }
