@@ -273,8 +273,8 @@ CHG.impOff = (el, k) => { const v = parseFloat(String(el.value).replace(',', '.'
 
 function bolLay(nm) {
   const one = nm === 1, L = { m: 14, w: 187.9, labW: 74 };
-  L.colW = (L.w - L.labW) / 4; L.tit = one ? 8 : 6.5; L.desc = one ? 17 : 8.5; L.th = one ? 7.5 : 6.5; L.cr = one ? 9.5 : 6.6; L.pr = one ? 9.5 : 7.4; L.gap = one ? 3 : 2.5; L.ob = one ? 27 : 8.6;
-  L.hb = L.tit + L.desc + L.th + 3 * L.cr + L.pr + L.gap + 3 * L.ob; L.y0 = 53; L.sep = 3; L.ty = 261; // la línea de las firmas del maestro y del director queda abajo, con ~20 mm de espacio para firmar
+  L.colW = (L.w - L.labW) / 4; L.tit = one ? 8 : 7; L.desc = one ? 3 : 1.5; L.th = one ? 7.5 : 7; L.cr = one ? 11 : 7.6; L.pr = one ? 11 : 8.4; L.gap = one ? 3 : 2.5; L.ob = one ? 30 : 8.6;
+  L.hb = L.tit + L.desc + L.th + 3 * L.cr + L.pr + L.gap + 3 * L.ob; L.y0 = 53; L.sep = one ? 3 : 6; L.ty = 261; // la línea de las firmas del maestro y del director queda abajo, con ~20 mm de espacio para firmar
   return L;
 }
 /* colores de trimestre: azul, lila, ámbar */
@@ -305,8 +305,6 @@ function dibujaBoleta(doc, a, solo, prueba) {
     if (st) {
       fill(BAR); R(L.m, yT, L.w, L.tit, 'F'); T(r.nombre.toUpperCase(), L.m + 3, yT + L.tit / 2 + 1.4, { b: 1, s: L.tit > 7 ? 10.5 : 9, c: blanco });
       T('Nivel ' + r.nivel + ' · ' + nomNivel(r.mat, r.nivel), L.m + L.w - 3, yT + L.tit / 2 + 1.4, { s: L.tit > 7 ? 9.5 : 8.5, c: [190, 205, 240], a: 'right' });
-      const fs = nm === 1 ? 9 : 7.8, ls = doc.setFontSize(fs).splitTextToSize(descNivel(r.mat, r.nivel), L.w - 6).slice(0, nm === 1 ? 4 : 2);
-      ls.forEach((t, i) => T(t, L.m + 3, yD + 4.2 + i * (fs * 0.42), { i: 1, s: fs, c: gris }));
       // columnas de trimestre con su color
       [1, 2, 3].forEach(p => {
         fill(TTINT[p - 1]); R(col(p), yH, L.colW, yP + L.pr - yH, 'F');
