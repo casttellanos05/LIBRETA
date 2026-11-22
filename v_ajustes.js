@@ -80,11 +80,18 @@ async function firmaProcesa(file) {
     const d = cx.getImageData(0, 0, W, H), p = d.data, lum = new Uint8Array(W * H), muestra = [];
     for (let i = 0, j = 0; j < W * H; i += 4, j++) { lum[j] = (p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11) | 0; if (j % 7 === 0) muestra.push(lum[j]); }
     muestra.sort((a, b) => a - b); const papel = Math.max(140, muestra[Math.floor(muestra.length * 0.85)]), alto = papel * 0.86, bajo = papel * 0.5;
-    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    let x0 = W, y0 = H, x1 = -1, y1 = -1, sr = 0, sg = 0, sb = 0, sw = 0;
+    const T = new Float32Array(W * H);
+    for (let j = 0; j < W * H; j++) { const t = Math.max(0, Math.min(1, (alto - lum[j]) / (alto - bajo))); T[j] = t < 0.04 ? 0 : t; if (t > 0.6) { const i = j * 4; sr += p[i] * t; sg += p[i + 1] * t; sb += p[i + 2] * t; sw += t; } }
+    // color de la tinta: el promedio de lo más oscuro del trazo (azul sigue azul, negro sigue negro)
+    let cr = sw ? sr / sw : 20, cg = sw ? sg / sw : 20, cb = sw ? sb / sw : 20; const mn = (cr + cg + cb) / 3;
+    if (Math.max(cr, cg, cb) - Math.min(cr, cg, cb) > 22) { cr = mn + (cr - mn) * 1.3; cg = mn + (cg - mn) * 1.3; cb = mn + (cb - mn) * 1.3; const lm = cr * 0.3 + cg * 0.59 + cb * 0.11, k = lm > 95 ? 95 / lm : 1; cr *= k; cg *= k; cb *= k; }
+    else { const k = mn > 45 ? 45 / mn : 1; cr *= k; cg *= k; cb *= k; }
+    cr = Math.max(0, Math.min(255, Math.round(cr))); cg = Math.max(0, Math.min(255, Math.round(cg))); cb = Math.max(0, Math.min(255, Math.round(cb)));
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const j = y * W + x, i = j * 4, t = Math.max(0, Math.min(1, (alto - lum[j]) / (alto - bajo))); // 0 = papel, 1 = tinta
-      if (t < 0.04) { p[i + 3] = 0; continue; }
-      p[i] = p[i] * 0.6; p[i + 1] = p[i + 1] * 0.6; p[i + 2] = p[i + 2] * 0.6; p[i + 3] = Math.round(255 * t);
+      const j = y * W + x, i = j * 4, t = T[j];
+      if (!t) { p[i + 3] = 0; continue; }
+      p[i] = cr; p[i + 1] = cg; p[i + 2] = cb; p[i + 3] = Math.round(255 * t);
       if (t > 0.25) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
     }
     if (x1 < 0 || (x1 - x0) < 20 || (y1 - y0) < 8) throw new Error('No encontré la firma en la foto. Usa pluma oscura sobre hoja blanca.');
